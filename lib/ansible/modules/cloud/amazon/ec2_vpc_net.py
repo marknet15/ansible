@@ -267,13 +267,13 @@ def main():
         # Note: Boto currently doesn't currently provide an interface to ec2-describe-vpc-attribute
         # which is needed in order to detect the current status of DNS options. For now we just update
         # the attribute each time and is not used as a changed-factor.
-        try:
-            if not module.check_mode:
-                connection.modify_vpc_attribute(vpc_obj.id, enable_dns_support=dns_support)
-                connection.modify_vpc_attribute(vpc_obj.id, enable_dns_hostnames=dns_hostnames)
-        except BotoServerError as e:
-            e_msg=boto_exception(e)
-            module.fail_json(msg=e_msg)
+        #try:
+        #    if not module.check_mode:
+        #        connection.modify_vpc_attribute(vpc_obj.id, enable_dns_support=dns_support)
+        #        connection.modify_vpc_attribute(vpc_obj.id, enable_dns_hostnames=dns_hostnames)
+        #except BotoServerError as e:
+        #    e_msg=boto_exception(e)
+        #    module.fail_json(msg=e_msg)
 
         if not module.check_mode:
             # get the vpc obj again in case it has changed
