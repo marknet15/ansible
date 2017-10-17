@@ -7,7 +7,7 @@
     limit_to: "*"
     debug: false
 
-# Run the tests within blocks allows the the next module to be tested if the previous one fails.
+# Run the tests within blocks allows the next module to be tested if the previous one fails.
 # This is done to allow https://github.com/ansible/dci-partner-ansible/ to run the full set of tests.
 
 
@@ -44,15 +44,6 @@
 
     - block:
       - include_role:
-          name: iosxr_template
-        when: "limit_to in ['*', 'iosxr_template']"
-      rescue:
-        - set_fact:
-            failed_modules: "{{ failed_modules }} + [ 'iosxr_template' ]"
-            test_failed: true
-
-    - block:
-      - include_role:
           name: iosxr_system
         when: "limit_to in ['*', 'iosxr_system']"
       rescue:
@@ -85,6 +76,15 @@
       rescue:
         - set_fact:
             failed_modules: "{{ failed_modules }} + [ 'iosxr_logging' ]"
+            test_failed: true
+
+    - block:
+      - include_role:
+          name: iosxr_interface
+        when: "limit_to in ['*', 'iosxr_interface']"
+      rescue:
+        - set_fact:
+            failed_modules: "{{ failed_modules }} + [ 'iosxr_interface' ]"
             test_failed: true
 
 ###########

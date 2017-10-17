@@ -1,24 +1,16 @@
 #!/usr/bin/python
-#
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
-#
+# -*- coding: utf-8 -*-
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+# (c) 2017, Ansible by Red Hat, inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'core'}
+                    'supported_by': 'network'}
 
 
 DOCUMENTATION = """
@@ -152,6 +144,7 @@ notes:
     the remote device being managed.
   - Loading JSON-formatted configuration I(json) is supported
     starting in Junos OS Release 16.1 onwards.
+  - Tested against vSRX JUNOS version 15.1X49-D15.4, vqfx-10000 JUNOS Version 15.1X53-D60.4.
 """
 
 EXAMPLES = """
@@ -198,7 +191,7 @@ import json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.junos import get_diff, load_config, get_configuration
 from ansible.module_utils.junos import commit_configuration, discard_changes, locked_config
-from ansible.module_utils.junos import junos_argument_spec
+from ansible.module_utils.junos import junos_argument_spec, load_configuration
 from ansible.module_utils.junos import check_args as junos_check_args
 from ansible.module_utils.netconf import send_request
 from ansible.module_utils.six import string_types
@@ -234,8 +227,8 @@ def zeroize(ele):
     return send_request(ele, Element('request-system-zeroize'))
 
 
-def rollback(ele):
-    return get_diff(ele)
+def rollback(ele, id='0'):
+    return get_diff(ele, id)
 
 
 def guess_format(config):
@@ -263,7 +256,7 @@ def filter_delete_statements(module, candidate):
     if match is None:
         # Could not find configuration-set in reply, perhaps device does not support it?
         return candidate
-    config = to_native(match.text, encoding='latin1')
+    config = to_native(match.text, encoding='latin-1')
 
     modified_candidate = candidate[:]
     for index, line in reversed(list(enumerate(candidate))):
@@ -353,9 +346,16 @@ def main():
 
         result['__backup__'] = match.text.strip()
 
-    if module.params['rollback']:
+    rollback_id = module.params['rollback']
+    if rollback_id:
+        diff = rollback(module, rollback_id)
         if commit:
-            diff = rollback(module)
+            kwargs = {
+                'comment': module.params['comment']
+            }
+            with locked_config(module):
+                load_configuration(module, rollback=rollback_id)
+                commit_configuration(module, **kwargs)
             if module._diff:
                 result['diff'] = {'prepared': diff}
         result['changed'] = True

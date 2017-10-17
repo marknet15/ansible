@@ -1,23 +1,13 @@
 #!/usr/bin/python
 
 # (c) 2016, NetApp, Inc
-#
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
-#
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
@@ -277,15 +267,15 @@ class NetAppESeriesFlashCache(object):
     @property
     def needs_more_disks(self):
         if len(self.cache_detail['driveRefs']) < self.disk_count:
-            self.debug("needs resize: current disk count %s < requested requested count %s" % (
-                len(self.cache_detail['driveRefs']), self.disk_count))
+            self.debug("needs resize: current disk count %s < requested requested count %s",
+                       len(self.cache_detail['driveRefs']), self.disk_count)
             return True
 
     @property
     def needs_less_disks(self):
         if len(self.cache_detail['driveRefs']) > self.disk_count:
-            self.debug("needs resize: current disk count %s < requested requested count %s" % (
-                len(self.cache_detail['driveRefs']), self.disk_count))
+            self.debug("needs resize: current disk count %s < requested requested count %s",
+                       len(self.cache_detail['driveRefs']), self.disk_count)
             return True
 
     @property
@@ -302,8 +292,8 @@ class NetAppESeriesFlashCache(object):
     @property
     def needs_more_capacity(self):
         if self.current_size_bytes < self.requested_size_bytes:
-            self.debug("needs resize: current capacity %sb is less than requested minimum %sb" % (
-                self.current_size_bytes, self.requested_size_bytes))
+            self.debug("needs resize: current capacity %sb is less than requested minimum %sb",
+                       self.current_size_bytes, self.requested_size_bytes)
             return True
 
     @property
@@ -415,7 +405,7 @@ def main():
     try:
         sp.apply()
     except Exception as e:
-        sp.debug("Exception in apply(): \n%s" % to_native(e))
+        sp.debug("Exception in apply(): \n%s", to_native(e))
         sp.module.fail_json(msg="Failed to create flash cache. Error[%s]" % to_native(e),
                             exception=traceback.format_exc())
 

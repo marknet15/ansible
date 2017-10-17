@@ -288,7 +288,7 @@ class ConsulInventory(object):
 
     def load_node_metadata_from_kv(self, node_data):
         ''' load the json dict at the metadata path defined by the kv_metadata value
-            and the node name add each entry in the dictionary to the the node's
+            and the node name add each entry in the dictionary to the node's
             metadata '''
         node = node_data['Node']
         if self.config.has_config('kv_metadata'):
@@ -473,10 +473,7 @@ class ConsulConfig(dict):
         scheme = 'http'
 
         if hasattr(self, 'url'):
-            try:
-                from urlparse import urlparse
-            except ImportError:
-                from urllib.parse import urlparse
+            from ansible.module_utils.six.moves.urllib.parse import urlparse
             o = urlparse(self.url)
             if o.hostname:
                 host = o.hostname

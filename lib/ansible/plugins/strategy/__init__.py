@@ -40,7 +40,7 @@ from ansible.playbook.helpers import load_list_of_blocks
 from ansible.playbook.included_file import IncludedFile
 from ansible.playbook.task_include import TaskInclude
 from ansible.playbook.role_include import IncludeRole
-from ansible.plugins import action_loader, connection_loader, filter_loader, lookup_loader, module_loader, test_loader
+from ansible.plugins.loader import action_loader, connection_loader, filter_loader, lookup_loader, module_loader, test_loader
 from ansible.template import Templar
 from ansible.utils.vars import combine_vars
 from ansible.vars.manager import strip_internal_keys
@@ -327,7 +327,7 @@ class StrategyBase:
         while True:
             try:
                 self._results_lock.acquire()
-                task_result = self._results.pop()
+                task_result = self._results.popleft()
             except IndexError:
                 break
             finally:
@@ -511,11 +511,13 @@ class StrategyBase:
                                 for target_host in host_list:
                                     self._variable_manager.set_host_variable(target_host, var_name, var_value)
                         else:
+                            cacheable = result_item.pop('ansible_facts_cacheable', True)
                             for target_host in host_list:
-                                if original_task.action == 'set_fact':
-                                    self._variable_manager.set_nonpersistent_facts(target_host, result_item['ansible_facts'].copy())
-                                else:
+                                if cacheable:
                                     self._variable_manager.set_host_facts(target_host, result_item['ansible_facts'].copy())
+
+                                # If we are setting a fact, it should populate non_persistent_facts as well
+                                self._variable_manager.set_nonpersistent_facts(target_host, result_item['ansible_facts'].copy())
 
                     if 'ansible_stats' in result_item and 'data' in result_item['ansible_stats'] and result_item['ansible_stats']['data']:
 
@@ -613,9 +615,6 @@ class StrategyBase:
                 new_group = self._inventory.groups[group_name]
                 new_group.add_host(self._inventory.hosts[host_name])
 
-            # clear pattern caching completely since it's unpredictable what patterns may have referenced the group
-            self._inventory.clear_pattern_cache()
-
             # reconcile inventory, ensures inventory rules are followed
             self._inventory.reconcile_inventory()
 
@@ -632,12 +631,17 @@ class StrategyBase:
         # host object from the master inventory
         real_host = self._inventory.hosts[host.name]
         group_name = result_item.get('add_group')
+        parent_group_names = result_item.get('parent_groups', [])
 
-        if group_name not in self._inventory.groups:
-            # create the new group and add it to inventory
-            self._inventory.add_group(group_name)
-            changed = True
+        for name in [group_name] + parent_group_names:
+            if name not in self._inventory.groups:
+                # create the new group and add it to inventory
+                self._inventory.add_group(name)
+                changed = True
         group = self._inventory.groups[group_name]
+        for parent_group_name in parent_group_names:
+            parent_group = self._inventory.groups[parent_group_name]
+            parent_group.add_child_group(group)
 
         if real_host.name not in group.get_hosts():
             group.add_host(real_host)
@@ -648,7 +652,6 @@ class StrategyBase:
             changed = True
 
         if changed:
-            self._inventory.clear_pattern_cache()
             self._inventory.reconcile_inventory()
 
         return changed
@@ -892,6 +895,7 @@ class StrategyBase:
                 msg = "ending play"
         elif meta_action == 'reset_connection':
             connection = connection_loader.get(play_context.connection, play_context, os.devnull)
+            play_context.set_options_from_plugin(connection)
             if connection:
                 connection.reset()
                 msg = 'reset connection'

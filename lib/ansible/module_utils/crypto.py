@@ -29,6 +29,7 @@ import hashlib
 import os
 
 from ansible.module_utils import six
+from ansible.module_utils._text import to_bytes
 
 
 class OpenSSLObjectError(Exception):
@@ -63,7 +64,7 @@ def load_privatekey(path, passphrase=None):
         if passphrase:
             privatekey = crypto.load_privatekey(crypto.FILETYPE_PEM,
                                                 open(path, 'rb').read(),
-                                                passphrase)
+                                                to_bytes(passphrase))
         else:
             privatekey = crypto.load_privatekey(crypto.FILETYPE_PEM,
                                                 open(path, 'rb').read())
@@ -80,6 +81,17 @@ def load_certificate(path):
         cert_content = open(path, 'rb').read()
         cert = crypto.load_certificate(crypto.FILETYPE_PEM, cert_content)
         return cert
+    except (IOError, OSError) as exc:
+        raise OpenSSLObjectError(exc)
+
+
+def load_certificate_request(path):
+    """Load the specified certificate signing request."""
+
+    try:
+        csr_content = open(path, 'rb').read()
+        csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr_content)
+        return csr
     except (IOError, OSError) as exc:
         raise OpenSSLObjectError(exc)
 

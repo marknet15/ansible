@@ -16,9 +16,9 @@
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'core'}
+                    'supported_by': 'network'}
 
 
 DOCUMENTATION = """
@@ -174,7 +174,7 @@ options:
         True.  If the argument is set to I(modified), then the running-config
         will only be copied to the startup-config if it has changed since
         the last save to startup-config.  If the argument is set to
-        I(never), the running-config will never be copied to the the
+        I(never), the running-config will never be copied to the
         startup-config
     required: false
     default: never
@@ -227,7 +227,7 @@ EXAMPLES = """
 - name: diff the running-config against a provided config
   nxos_config:
     diff_against: intended
-    intended: "{{ lookup('file', 'master.cfg') }}"
+    intended_config: "{{ lookup('file', 'master.cfg') }}"
 
 - nxos_config:
     lines:
@@ -283,7 +283,7 @@ def get_running_config(module, config=None):
         else:
             flags = ['all']
             contents = get_config(module, flags=flags)
-    return NetworkConfig(indent=3, contents=contents)
+    return NetworkConfig(indent=2, contents=contents)
 
 
 def get_candidate(module):
@@ -392,8 +392,11 @@ def main():
 
     diff_ignore_lines = module.params['diff_ignore_lines']
 
+    if module.params['save']:
+        module.params['save_when'] = 'always'
+
     if module.params['save_when'] != 'never':
-        output = run_commands(module, ['show running-config', 'startup-config'])
+        output = run_commands(module, ['show running-config', 'show startup-config'])
 
         running_config = NetworkConfig(indent=1, contents=output[0], ignore_lines=diff_ignore_lines)
         startup_config = NetworkConfig(indent=1, contents=output[1], ignore_lines=diff_ignore_lines)

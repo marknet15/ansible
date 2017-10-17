@@ -2,26 +2,15 @@
 # -*- coding: utf-8 -*-
 
 # (c) 2017, Ansible by Red Hat, inc
-#
-# This file is part of Ansible by Red Hat
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
-#
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'core'}
+                    'supported_by': 'network'}
 
 DOCUMENTATION = """
 ---
@@ -48,7 +37,7 @@ options:
         This argument accepts a string value and is mutually exclusive
         with the C(aggregate) argument.
         Please note that this option is not same as C(provider username).
-  password:
+  configured_password:
     description:
       - The password to be configured on the remote network device. The
         password needs to be provided in clear and it will be encrypted
@@ -109,16 +98,19 @@ EXAMPLES = """
     name: ansible
     sshkey: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
     state: present
+
 - name: remove all users except admin
   net_user:
     purge: yes
+
 - name: set multiple users to privilege level 15
   net_user:
     aggregate:
-      - name: netop
-      - name: netend
+      - { name: netop }
+      - { name: netend }
     privilege: 15
     state: present
+
 - name: Change Password for User netop
   net_user:
     name: netop

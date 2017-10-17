@@ -30,6 +30,7 @@
 
 import json
 import re
+import sys
 
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.six import binary_type, text_type
@@ -38,7 +39,11 @@ from ansible.module_utils._text import to_native
 
 class ConfigProxy(object):
 
-    def __init__(self, actual, client, attribute_values_dict, readwrite_attrs, transforms={}, readonly_attrs=[], immutable_attrs=[], json_encodes=[]):
+    def __init__(self, actual, client, attribute_values_dict, readwrite_attrs, transforms=None, readonly_attrs=None, immutable_attrs=None, json_encodes=None):
+        transforms = {} if transforms is None else transforms
+        readonly_attrs = [] if readonly_attrs is None else readonly_attrs
+        immutable_attrs = [] if immutable_attrs is None else immutable_attrs
+        json_encodes = [] if json_encodes is None else json_encodes
 
         # Actual config object from nitro sdk
         self.actual = actual
@@ -57,12 +62,20 @@ class ConfigProxy(object):
 
         self.attribute_values_processed = {}
         for attribute, value in self.attribute_values_dict.items():
+            if value is None:
+                continue
             if attribute in transforms:
                 for transform in self.transforms[attribute]:
                     if transform == 'bool_yes_no':
-                        value = 'YES' if value is True else 'NO'
+                        if value is True:
+                            value = 'YES'
+                        elif value is False:
+                            value = 'NO'
                     elif transform == 'bool_on_off':
-                        value = 'ON' if value is True else 'OFF'
+                        if value is True:
+                            value = 'ON'
+                        elif value is False:
+                            value = 'OFF'
                     elif callable(transform):
                         value = transform(value)
                     else:
@@ -130,7 +143,7 @@ class ConfigProxy(object):
 
             # Compare values
             param_type = self.attribute_values_processed[attribute].__class__
-            if param_type(attribute_value) != self.attribute_values_processed[attribute]:
+            if attribute_value is None or param_type(attribute_value) != self.attribute_values_processed[attribute]:
                 str_tuple = (
                     type(self.attribute_values_processed[attribute]),
                     self.attribute_values_processed[attribute],
@@ -180,6 +193,10 @@ def get_immutables_intersection(config_proxy, keys):
 
 def ensure_feature_is_enabled(client, feature_str):
     enabled_features = client.get_enabled_features()
+
+    if enabled_features is None:
+        enabled_features = []
+
     if feature_str not in enabled_features:
         client.enable_features(feature_str)
         client.save_config()
@@ -255,6 +272,12 @@ def get_ns_version(client):
         return None
     else:
         return int(m.group(1)), int(m.group(2))
+
+
+def get_ns_hardware(client):
+    from nssrc.com.citrix.netscaler.nitro.resource.config.ns.nshardware import nshardware
+    result = nshardware.get(client)
+    return result
 
 
 def monkey_patch_nitro_api():

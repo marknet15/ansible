@@ -44,7 +44,7 @@ from ansible.module_utils._text import to_native, to_text
 from ansible.module_utils.parsing.convert_bool import boolean
 from ansible.parsing.splitter import parse_kv
 from ansible.playbook.play import Play
-from ansible.plugins import module_loader
+from ansible.plugins.loader import module_loader
 from ansible.utils import plugin_docs
 from ansible.utils.color import stringc
 
@@ -126,9 +126,10 @@ class ConsoleCLI(CLI, cmd.Cmd):
 
     def list_modules(self):
         modules = set()
-        if self.options.module_path is not None:
-            for i in self.options.module_path.split(os.pathsep):
-                module_loader.add_directory(i)
+        if self.options.module_path:
+            for path in self.options.module_path:
+                if path:
+                    module_loader.add_directory(path)
 
         module_paths = module_loader._get_paths()
         for path in module_paths:
@@ -414,6 +415,15 @@ class ConsoleCLI(CLI, cmd.Cmd):
         self.passwords = {'conn_pass': sshpass, 'become_pass': becomepass}
 
         self.loader, self.inventory, self.variable_manager = self._play_prereqs(self.options)
+
+        default_vault_ids = C.DEFAULT_VAULT_IDENTITY_LIST
+        vault_ids = self.options.vault_ids
+        vault_ids = default_vault_ids + vault_ids
+        vault_secrets = self.setup_vault_secrets(self.loader,
+                                                 vault_ids=vault_ids,
+                                                 vault_password_files=self.options.vault_password_files,
+                                                 ask_vault_pass=self.options.ask_vault_pass)
+        self.loader.set_vault_secrets(vault_secrets)
 
         no_hosts = False
         if len(self.inventory.list_hosts()) == 0:

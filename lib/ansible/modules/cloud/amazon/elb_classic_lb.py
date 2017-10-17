@@ -1,22 +1,14 @@
 #!/usr/bin/python
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+# Copyright: Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
-                    'status': ['stableinterface'],
-                    'supported_by': 'curated'}
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
+                    'status': ['preview'],
+                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = """
@@ -178,8 +170,7 @@ EXAMPLES = """
 
 # Basic provisioning example (non-VPC)
 
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-please-delete"
     state: present
     zones:
@@ -196,11 +187,11 @@ EXAMPLES = """
         instance_port: 80
         # ssl certificate required for https or ssl
         ssl_certificate_id: "arn:aws:iam::123456789012:server-certificate/company/servercerts/ProdServerCert"
+  delegate_to: localhost
 
 # Internal ELB example
 
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-vpc"
     scheme: internal
     state: present
@@ -214,10 +205,10 @@ EXAMPLES = """
       - protocol: http # options are http, https, ssl, tcp
         load_balancer_port: 80
         instance_port: 80
+  delegate_to: localhost
 
 # Configure a health check and the access logs
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-please-delete"
     state: present
     zones:
@@ -238,33 +229,33 @@ EXAMPLES = """
         interval: 5 # minutes (defaults to 60)
         s3_location: "my-bucket" # This value is required if access_logs is set
         s3_prefix: "logs"
+  delegate_to: localhost
 
 # Ensure ELB is gone
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-please-delete"
     state: absent
+  delegate_to: localhost
 
 # Ensure ELB is gone and wait for check (for default timeout)
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-please-delete"
     state: absent
     wait: yes
+  delegate_to: localhost
 
 # Ensure ELB is gone and wait for check with timeout value
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-please-delete"
     state: absent
     wait: yes
     wait_timeout: 600
+  delegate_to: localhost
 
 # Normally, this module will purge any listeners that exist on the ELB
 # but aren't specified in the listeners parameter. If purge_listeners is
 # false it leaves them alone
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-please-delete"
     state: present
     zones:
@@ -275,12 +266,12 @@ EXAMPLES = """
         load_balancer_port: 80
         instance_port: 80
     purge_listeners: no
+  delegate_to: localhost
 
 # Normally, this module will leave availability zones that are enabled
 # on the ELB alone. If purge_zones is true, then any extraneous zones
 # will be removed
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "test-please-delete"
     state: present
     zones:
@@ -291,10 +282,10 @@ EXAMPLES = """
         load_balancer_port: 80
         instance_port: 80
     purge_zones: yes
+  delegate_to: localhost
 
 # Creates a ELB and assigns a list of subnets to it.
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     state: present
     name: 'New ELB'
     security_group_ids: 'sg-123456, sg-67890'
@@ -305,11 +296,11 @@ EXAMPLES = """
       - protocol: http
         load_balancer_port: 80
         instance_port: 80
+  delegate_to: localhost
 
 # Create an ELB with connection draining, increased idle timeout and cross availability
 # zone load balancing
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "New ELB"
     state: present
     connection_draining_timeout: 60
@@ -323,10 +314,10 @@ EXAMPLES = """
       - protocol: http
         load_balancer_port: 80
         instance_port: 80
+  delegate_to: localhost
 
 # Create an ELB with load balancer stickiness enabled
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "New ELB"
     state: present
     region: us-east-1
@@ -341,10 +332,10 @@ EXAMPLES = """
       type: loadbalancer
       enabled: yes
       expiration: 300
+  delegate_to: localhost
 
 # Create an ELB with application stickiness enabled
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "New ELB"
     state: present
     region: us-east-1
@@ -359,10 +350,10 @@ EXAMPLES = """
       type: application
       enabled: yes
       cookie: SESSIONID
+  delegate_to: localhost
 
 # Create an ELB and add tags
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "New ELB"
     state: present
     region: us-east-1
@@ -377,10 +368,10 @@ EXAMPLES = """
       Name: "New ELB"
       stack: "production"
       client: "Bob"
+  delegate_to: localhost
 
 # Delete all tags from an ELB
-- local_action:
-    module: ec2_elb_lb
+- elb_classic_lb:
     name: "New ELB"
     state: present
     region: us-east-1
@@ -392,7 +383,12 @@ EXAMPLES = """
         load_balancer_port: 80
         instance_port: 80
     tags: {}
+  delegate_to: localhost
 """
+
+import random
+import time
+import traceback
 
 try:
     import boto
@@ -405,13 +401,8 @@ try:
 except ImportError:
     HAS_BOTO = False
 
-import time
-import traceback
-import random
-
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.ec2 import ec2_argument_spec, connect_to_aws, AnsibleAWSError
-from ansible.module_utils.ec2 import get_aws_connection_info
+from ansible.module_utils.ec2 import ec2_argument_spec, connect_to_aws, AnsibleAWSError, get_aws_connection_info
 from ansible.module_utils.six import string_types
 from ansible.module_utils._text import to_native
 
@@ -649,7 +640,7 @@ class ElbManager(object):
     @_throttleable_operation(_THROTTLING_RETRIES)
     def _wait_for_elb_removed(self):
         polling_increment_secs = 15
-        max_retries = (self.wait_timeout / polling_increment_secs)
+        max_retries = (self.wait_timeout // polling_increment_secs)
         status_achieved = False
 
         for x in range(0, max_retries):
@@ -667,7 +658,7 @@ class ElbManager(object):
     @_throttleable_operation(_THROTTLING_RETRIES)
     def _wait_for_elb_interface_removed(self):
         polling_increment_secs = 15
-        max_retries = (self.wait_timeout / polling_increment_secs)
+        max_retries = (self.wait_timeout // polling_increment_secs)
         status_achieved = False
 
         elb_interfaces = self.ec2_conn.get_all_network_interfaces(
@@ -1023,7 +1014,9 @@ class ElbManager(object):
         self._delete_policy(self.elb.name, policy)
         self._create_policy(policy_param, policy_meth, policy)
 
-    def _set_listener_policy(self, listeners_dict, policy=[]):
+    def _set_listener_policy(self, listeners_dict, policy=None):
+        policy = [] if policy is None else policy
+
         for listener_port in listeners_dict:
             if listeners_dict[listener_port].startswith('HTTP'):
                 self.elb_conn.set_lb_policies_of_listener(self.elb.name, listener_port, policy)
@@ -1063,7 +1056,10 @@ class ElbManager(object):
                     if 'expiration' not in self.stickiness:
                         self.module.fail_json(msg='expiration must be set when type is loadbalancer')
 
-                    expiration = self.stickiness['expiration'] if self.stickiness['expiration'] is not 0 else None
+                    try:
+                        expiration = self.stickiness['expiration'] if int(self.stickiness['expiration']) else None
+                    except ValueError:
+                        self.module.fail_json(msg='expiration must be set to an integer')
 
                     policy_attrs = {
                         'type': policy_type,

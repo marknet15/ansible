@@ -138,6 +138,27 @@ Function Compare-RegistryProperties($existing, $new) {
     return $mismatch
 }
 
+Function Get-DiffValueString($type, $value) {
+    $enum = [Microsoft.Win32.RegistryValueKind]
+    if ($type -in @($enum::Binary, $enum::None)) {
+        $hex_values = @()
+        foreach ($dec_value in $value) {
+            $hex_values += "0x$("{0:x2}" -f $dec_value)"
+        }
+        $diff_value = "$($type):[$($hex_values -join ", ")]"
+    } elseif ($type -eq $enum::DWord) {
+        $diff_value = "$($type):0x$("{0:x8}" -f $value)"
+    } elseif ($type -eq $enum::QWord) {
+        $diff_value = "$($type):0x$("{0:x16}" -f $value)"
+    } elseif ($type -eq $enum::MultiString) {
+        $diff_value = "$($type):[$($value -join ", ")]"
+    } else {
+        $diff_value = "$($type):$value"
+    }
+
+    return $diff_value
+}
+
 # convert property names "" to $null as "" refers to (Default)
 if ($name -eq "") {
     $name = $null
@@ -222,7 +243,7 @@ if ($state -eq "present") {
     if (-not (Test-Path -path $path)) {
         # the key doesn't exist, create it so the next steps work
         try {
-            New-Item -Path $path -Type directory -Force -WhatIf:$check_mode
+            $null = New-Item -Path $path -Type directory -Force -WhatIf:$check_mode
         } catch {
             Fail-Json $result "failed to create registry key at $($path): $($_.Exception.Message)"
         }
@@ -268,10 +289,16 @@ if ($state -eq "present") {
             $result.changed = $true
 
             if ($diff_mode) {
-                $result.diff.prepared += @"
-[$path]
--"$name" = "$existing_type`:$existing_data"
-+"$name" = "$type`:$data"               
+                if ($result.diff.prepared) {
+                    $key_prefix = "+"
+                } else {
+                    $key_prefix = ""
+                }
+                
+                $result.diff.prepared = @"
+$key_prefix[$path]
+-"$name" = "$(Get-DiffValueString -type $existing_type -value $existing_data)"
++"$name" = "$(Get-DiffValueString -type $type -value $data)"
 "@
             }
         }
@@ -286,9 +313,15 @@ if ($state -eq "present") {
         }
         $result.changed = $true
         if ($diff_mode) {
-            $result.diff.prepared += @"
-[$path]
-+"$name" = "$type`:$data"
+            if ($result.diff.prepared) {
+                $key_prefix = "+"
+            } else {
+                $key_prefix = ""
+            }
+            
+            $result.diff.prepared = @"
+$key_prefix[$path]
++"$name" = "$(Get-DiffValueString -type $type -value $data)"
 "@
         }
     }
@@ -297,7 +330,7 @@ if ($state -eq "present") {
         if ($delete_key -and $name -eq $null) {
             # the clear_key flag is set and name is null so delete the entire key
             try {
-                Remove-Item -Path $path -Force -Recurse -WhatIf:$check_mode
+                $null = Remove-Item -Path $path -Force -Recurse -WhatIf:$check_mode
             } catch {
                 Fail-Json $result "failed to delete registry key at $($path): $($_.Exception.Message)"
             }
@@ -328,7 +361,7 @@ if ($state -eq "present") {
                 if ($diff_mode) {
                     $result.diff.prepared += @"
 [$path]
--"$name" = "$existing_type`:$existing_data"
+-"$name" = "$(Get-DiffValueString -type $existing_type -value $existing_data)"
 "@
                 }
             }

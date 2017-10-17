@@ -2,36 +2,27 @@
 # -*- coding: utf-8 -*-
 
 # (c) 2017, Ansible by Red Hat, inc
-#
-# This file is part of Ansible by Red Hat
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
-#
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'core'}
+                    'supported_by': 'network'}
 
 DOCUMENTATION = """
 ---
 module: iosxr_logging
 version_added: "2.4"
-author: "Trishna Guha (@trishnag)"
+author: "Trishna Guha (@trishnaguha)"
 short_description: Manage logging on network devices
 description:
   - This module provides declarative management of logging
     on Cisco IOS XR devices.
+notes:
+  - Tested against IOS XR 6.1.2
 options:
   dest:
     description:
@@ -57,10 +48,6 @@ options:
     default: debugging
   aggregate:
     description: List of logging definitions.
-  purge:
-    description:
-      - Purge logging not defined in the aggregates parameter.
-    default: no
   state:
     description:
       - State of the logging configuration.
@@ -74,24 +61,41 @@ EXAMPLES = """
     dest: hostnameprefix
     name: 172.16.0.1
     state: present
+
 - name: remove hostnameprefix logging configuration
   iosxr_logging:
     dest: hostnameprefix
     name: 172.16.0.1
     state: absent
+
 - name: configure console logging level and facility
   iosxr_logging:
     dest: console
     facility: local7
     level: debugging
     state: present
+
 - name: enable logging to all
   iosxr_logging:
     dest : on
+
 - name: configure buffer size
   iosxr_logging:
     dest: buffered
     size: 5000
+
+- name: Configure logging using aggregate
+  iosxr_logging:
+    aggregate:
+      - { dest: console, level: warning }
+      - { dest: buffered, size: 4800000 }
+
+- name: Delete logging using aggregate
+  iosxr_logging:
+    aggregate:
+      - { dest: console, level: warning }
+      - { dest: buffered, size: 4800000 }
+    state: absent
 """
 
 RETURN = """
@@ -106,14 +110,17 @@ commands:
 
 import re
 
+from copy import deepcopy
+
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.iosxr import get_config, load_config
 from ansible.module_utils.iosxr import iosxr_argument_spec, check_args
+from ansible.module_utils.network_common import remove_default_spec
 
 
 def validate_size(value, module):
     if value:
-        if not int(307200) <= value <= int(125000000):
+        if value and not int(307200) <= value <= int(125000000):
             module.fail_json(msg='size must be between 307200 and 125000000')
         else:
             return value
@@ -122,7 +129,6 @@ def validate_size(value, module):
 def map_obj_to_commands(updates, module):
     commands = list()
     want, have = updates
-
     for w in want:
         dest = w['dest']
         name = w['name']
@@ -162,7 +168,6 @@ def map_obj_to_commands(updates, module):
                     dest_cmd += ' {}'.format(level)
 
                 commands.append(dest_cmd)
-
     return commands
 
 
@@ -208,7 +213,7 @@ def parse_name(line, dest):
 
 
 def parse_level(line, dest):
-    level_group = ('emergencies', 'alerts', 'critical', 'errors', 'warnings',
+    level_group = ('emergencies', 'alerts', 'critical', 'errors', 'warning',
                    'notifications', 'informational', 'debugging')
 
     if dest == 'hostnameprefix':
@@ -228,44 +233,44 @@ def parse_level(line, dest):
 
 
 def map_config_to_obj(module):
+
     obj = []
     dest_group = ('console', 'hostnameprefix', 'monitor', 'buffered', 'on')
 
     data = get_config(module, flags=['logging'])
+    lines = data.split("\n")
 
-    for line in data.split('\n'):
-
+    for line in lines:
         match = re.search(r'logging (\S+)', line, re.M)
-
-        if match.group(1) in dest_group:
-            dest = match.group(1)
-        else:
-            pass
-
-        obj.append({'dest': dest,
+        if match:
+            if match.group(1) in dest_group:
+                dest = match.group(1)
+                obj.append({
+                    'dest': dest,
                     'name': parse_name(line, dest),
                     'size': parse_size(line, dest),
                     'facility': parse_facility(line),
-                    'level': parse_level(line, dest)})
+                    'level': parse_level(line, dest)
+                })
 
     return obj
 
 
-def map_params_to_obj(module):
+def map_params_to_obj(module, required_if=None):
     obj = []
 
-    if 'aggregate' in module.params and module.params['aggregate']:
-        for c in module.params['aggregate']:
-            d = c.copy()
+    aggregate = module.params.get('aggregate')
+    if aggregate:
+        for item in aggregate:
+            for key in item:
+                if item.get(key) is None:
+                    item[key] = module.params[key]
+
+            module._check_required_if(required_if, item)
+            d = item.copy()
+
             if d['dest'] != 'hostnameprefix':
                 d['name'] = None
-
-            if 'state' not in d:
-                d['state'] = module.params['state']
-            if 'facility' not in d:
-                d['facility'] = module.params['facility']
-            if 'level' not in d:
-                d['level'] = module.params['level']
 
             if d['dest'] == 'buffered':
                 if 'size' in d:
@@ -316,17 +321,25 @@ def map_params_to_obj(module):
 def main():
     """ main entry point for module execution
     """
-    argument_spec = dict(
+    element_spec = dict(
         dest=dict(type='str', choices=['on', 'hostnameprefix', 'console', 'monitor', 'buffered']),
         name=dict(type='str'),
         size=dict(type='int'),
         facility=dict(type='str', default='local7'),
         level=dict(type='str', default='debugging'),
         state=dict(default='present', choices=['present', 'absent']),
-        aggregate=dict(type='list'),
-        purge=dict(default=False, type='bool')
     )
 
+    aggregate_spec = deepcopy(element_spec)
+
+    # remove default in aggregate spec, to handle common arguments
+    remove_default_spec(aggregate_spec)
+
+    argument_spec = dict(
+        aggregate=dict(type='list', elements='dict', options=aggregate_spec),
+    )
+
+    argument_spec.update(element_spec)
     argument_spec.update(iosxr_argument_spec)
 
     required_if = [('dest', 'hostnameprefix', ['name'])]
@@ -340,7 +353,7 @@ def main():
 
     result = {'changed': False}
 
-    want = map_params_to_obj(module)
+    want = map_params_to_obj(module, required_if=required_if)
     have = map_config_to_obj(module)
     commands = map_obj_to_commands((want, have), module)
 

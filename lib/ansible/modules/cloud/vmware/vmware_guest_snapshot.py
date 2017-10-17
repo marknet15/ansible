@@ -2,23 +2,13 @@
 # -*- coding: utf-8 -*-
 #
 # This module is also sponsored by E.T.A.I. (www.etai.fr)
-#
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
@@ -120,6 +110,8 @@ EXAMPLES = '''
       hostname: 192.168.1.209
       username: administrator@vsphere.local
       password: vmware
+      datacenter: datacenter_name
+      folder: /myfolder
       name: dummy_vm
       state: present
       snapshot_name: snap1
@@ -132,6 +124,8 @@ EXAMPLES = '''
       username: administrator@vsphere.local
       password: vmware
       name: dummy_vm
+      datacenter: datacenter_name
+      folder: /myfolder
       state: remove
       snapshot_name: snap1
     delegate_to: localhost
@@ -141,6 +135,8 @@ EXAMPLES = '''
       hostname: 192.168.1.209
       username: administrator@vsphere.local
       password: vmware
+      datacenter: datacenter_name
+      folder: /myfolder
       name: dummy_vm
       state: revert
       snapshot_name: snap1
@@ -151,6 +147,8 @@ EXAMPLES = '''
       hostname: 192.168.1.209
       username: administrator@vsphere.local
       password: vmware
+      datacenter: datacenter_name
+      folder: /myfolder
       name: dummy_vm
       state: remove_all
     delegate_to: localhost
@@ -188,14 +186,6 @@ instance:
 """
 
 import time
-from ansible.module_utils._text import to_native
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.vmware import connect_to_api, vmware_argument_spec, find_vm_by_id
-
-try:
-    import json
-except ImportError:
-    import simplejson as json
 
 HAS_PYVMOMI = False
 try:
@@ -205,6 +195,10 @@ try:
     HAS_PYVMOMI = True
 except ImportError:
     pass
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
+from ansible.module_utils.vmware import connect_to_api, vmware_argument_spec, find_vm_by_id
 
 
 class PyVmomiHelper(object):
@@ -357,6 +351,7 @@ def main():
         module.fail_json(**result)
     else:
         module.exit_json(**result)
+
 
 if __name__ == '__main__':
     main()

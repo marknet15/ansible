@@ -2,24 +2,13 @@
 # -*- coding: utf-8 -*-
 #
 # (c) 2013-2014, Epic Games, Inc.
-#
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible. If not, see <http://www.gnu.org/licenses/>.
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
 
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
@@ -81,6 +70,10 @@ options:
             - List of host groups to create or delete.
         required: true
         aliases: [ "host_group" ]
+
+extends_documentation_fragment:
+    - zabbix
+
 notes:
     - Too many concurrent updates to the same group may cause Zabbix to return errors, see examples for a workaround if needed.
 '''
@@ -119,6 +112,8 @@ try:
     HAS_ZABBIX_API = True
 except ImportError:
     HAS_ZABBIX_API = False
+
+from ansible.module_utils.basic import AnsibleModule
 
 
 class HostGroup(object):
@@ -170,10 +165,11 @@ def main():
             server_url=dict(type='str', required=True, aliases=['url']),
             login_user=dict(type='str', required=True),
             login_password=dict(type='str', required=True, no_log=True),
-            http_login_user=dict(type='str',required=False, default=None),
-            http_login_password=dict(type='str',required=False, default=None, no_log=True),
+            http_login_user=dict(type='str', required=False, default=None),
+            http_login_password=dict(type='str', required=False, default=None, no_log=True),
+            validate_certs=dict(type='bool', required=False, default=True),
             host_groups=dict(type='list', required=True, aliases=['host_group']),
-            state=dict(default="present", choices=['present','absent']),
+            state=dict(default="present", choices=['present', 'absent']),
             timeout=dict(type='int', default=10)
         ),
         supports_check_mode=True
@@ -187,6 +183,7 @@ def main():
     login_password = module.params['login_password']
     http_login_user = module.params['http_login_user']
     http_login_password = module.params['http_login_password']
+    validate_certs = module.params['validate_certs']
     host_groups = module.params['host_groups']
     state = module.params['state']
     timeout = module.params['timeout']
@@ -195,7 +192,8 @@ def main():
 
     # login to zabbix
     try:
-        zbx = ZabbixAPI(server_url, timeout=timeout, user=http_login_user, passwd=http_login_password)
+        zbx = ZabbixAPI(server_url, timeout=timeout, user=http_login_user, passwd=http_login_password,
+                        validate_certs=validate_certs)
         zbx.login(login_user, login_password)
     except Exception as e:
         module.fail_json(msg="Failed to connect to Zabbix server: %s" % e)
@@ -226,7 +224,6 @@ def main():
         else:
             module.exit_json(changed=False)
 
-from ansible.module_utils.basic import *
 
 if __name__ == '__main__':
     main()

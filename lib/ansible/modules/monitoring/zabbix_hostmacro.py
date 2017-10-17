@@ -2,24 +2,13 @@
 # -*- coding: utf-8 -*-
 
 # (c) 2013-2014, Epic Games, Inc.
-#
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible. If not, see <http://www.gnu.org/licenses/>.
-#
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
@@ -87,6 +76,9 @@ options:
         description:
             - The timeout of API request (seconds).
         default: 10
+
+extends_documentation_fragment:
+    - zabbix
 '''
 
 EXAMPLES = '''
@@ -102,9 +94,6 @@ EXAMPLES = '''
     state: present
 '''
 
-import logging
-import copy
-
 try:
     from zabbix_api import ZabbixAPI, ZabbixAPISubClass
 
@@ -117,6 +106,8 @@ try:
     HAS_ZABBIX_API = True
 except ImportError:
     HAS_ZABBIX_API = False
+
+from ansible.module_utils.basic import AnsibleModule
 
 
 class HostMacro(object):
@@ -160,7 +151,7 @@ class HostMacro(object):
     # update host macro
     def update_host_macro(self, host_macro_obj, macro_name, macro_value):
         host_macro_id = host_macro_obj['hostmacroid']
-        if host_macro_obj['macro'] == '{$'+macro_name+'}' and host_macro_obj['value'] == macro_value:
+        if host_macro_obj['macro'] == '{$' + macro_name + '}' and host_macro_obj['value'] == macro_value:
             self._module.exit_json(changed=False, result="Host macro %s already up to date" % macro_name)
         try:
             if self._module.check_mode:
@@ -181,6 +172,7 @@ class HostMacro(object):
         except Exception as e:
             self._module.fail_json(msg="Failed to delete host macro %s: %s" % (macro_name, e))
 
+
 def main():
     module = AnsibleModule(
         argument_spec=dict(
@@ -189,6 +181,7 @@ def main():
             login_password=dict(type='str', required=True, no_log=True),
             http_login_user=dict(type='str', required=False, default=None),
             http_login_password=dict(type='str', required=False, default=None, no_log=True),
+            validate_certs=dict(type='bool', required=False, default=True),
             host_name=dict(type='str', required=True),
             macro_name=dict(type='str', required=True),
             macro_value=dict(type='str', required=True),
@@ -206,8 +199,9 @@ def main():
     login_password = module.params['login_password']
     http_login_user = module.params['http_login_user']
     http_login_password = module.params['http_login_password']
+    validate_certs = module.params['validate_certs']
     host_name = module.params['host_name']
-    macro_name  = (module.params['macro_name']).upper()
+    macro_name = (module.params['macro_name']).upper()
     macro_value = module.params['macro_value']
     state = module.params['state']
     timeout = module.params['timeout']
@@ -215,14 +209,13 @@ def main():
     zbx = None
     # login to zabbix
     try:
-        zbx = ZabbixAPIExtends(server_url, timeout=timeout, user=http_login_user, passwd=http_login_password)
+        zbx = ZabbixAPIExtends(server_url, timeout=timeout, user=http_login_user, passwd=http_login_password,
+                               validate_certs=validate_certs)
         zbx.login(login_user, login_password)
     except Exception as e:
         module.fail_json(msg="Failed to connect to Zabbix server: %s" % e)
 
     host_macro_class_obj = HostMacro(module, zbx)
-
-    changed = False
 
     if host_name:
         host_id = host_macro_class_obj.get_host_id(host_name)
@@ -242,7 +235,6 @@ def main():
             # update host macro
             host_macro_class_obj.update_host_macro(host_macro_obj, macro_name, macro_value)
 
-from ansible.module_utils.basic import *
 
 if __name__ == '__main__':
     main()

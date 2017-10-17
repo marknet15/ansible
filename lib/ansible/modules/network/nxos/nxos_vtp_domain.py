@@ -15,9 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 #
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'community'}
+                    'supported_by': 'network'}
 
 
 DOCUMENTATION = '''
@@ -31,6 +31,7 @@ description:
 author:
     - Gabriele Gerbino (@GGabriele)
 notes:
+    - Tested against NXOSv 7.3.(0)D1(1) on VIRL
     - VTP feature must be active on the device to use this module.
     - This module is used to manage only VTP domain names.
     - VTP domain names are case-sensible.
@@ -148,10 +149,13 @@ def get_vtp_config(module):
 def get_vtp_password(module):
     command = 'show vtp password'
     body = execute_show_command(command, module)[0]
-    password = body['passwd']
-    if password:
-        return str(password)
-    else:
+    try:
+        password = body['passwd']
+        if password:
+            return str(password)
+        else:
+            return ""
+    except TypeError:
         return ""
 
 

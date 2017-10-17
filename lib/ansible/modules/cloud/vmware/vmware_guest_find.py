@@ -1,23 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+# Copyright: Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
 
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
@@ -47,7 +38,7 @@ options:
             - This is required if name is not supplied.
    datacenter:
         description:
-            - Destination datacenter for the deploy operation.
+            - Destination datacenter for the find operation.
         required: True
 extends_documentation_fragment: vmware.documentation
 '''
@@ -78,17 +69,22 @@ RETURN = """
 import os
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
-from ansible.module_utils.vmware import connect_to_api, gather_vm_facts, get_all_objs, compile_folder_path_for_object, vmware_argument_spec
+from ansible.module_utils.vmware import (
+    connect_to_api,
+    gather_vm_facts,
+    get_all_objs,
+    compile_folder_path_for_object,
+    vmware_argument_spec,
+    find_datacenter_by_name
+)
 
-
-HAS_PYVMOMI = False
 try:
     import pyVmomi
     from pyVmomi import vim
 
     HAS_PYVMOMI = True
 except ImportError:
-    pass
+    HAS_PYVMOMI = False
 
 
 class PyVmomiHelper(object):
@@ -194,37 +190,13 @@ class PyVmomiHelper(object):
 
     def getfolders(self):
         if not self.datacenter:
-            self.get_datacenter()
+            self.datacenter = find_datacenter_by_name(self.content, self.params['datacenter'])
+
+        if self.datacenter is None:
+            self.module.fail_json(msg="Unable to find datacenter %(datacenter)s" % self.params)
+
         self.folders = self._build_folder_tree(self.datacenter.vmFolder)
         self._build_folder_map(self.folders)
-
-    def get_datacenter(self):
-        self.datacenter = get_obj(
-            self.content,
-            [vim.Datacenter],
-            self.params['datacenter']
-        )
-
-
-def get_obj(content, vimtype, name):
-    """
-    Return an object by name, if name is None the
-    first found object is returned
-    """
-    obj = None
-    container = content.viewManager.CreateContainerView(
-        content.rootFolder, vimtype, True)
-    for c in container.view:
-        if name:
-            if c.name == name:
-                obj = c
-                break
-        else:
-            obj = c
-            break
-
-    container.Destroy()
-    return obj
 
 
 def main():
@@ -257,6 +229,7 @@ def main():
         elif module.params['uuid']:
             msg += "%(uuid)s" % module.params
         module.fail_json(msg=msg)
+
 
 if __name__ == '__main__':
     main()

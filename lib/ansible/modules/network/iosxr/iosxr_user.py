@@ -2,32 +2,21 @@
 # -*- coding: utf-8 -*-
 
 # (c) 2017, Ansible by Red Hat, inc
-#
-# This file is part of Ansible by Red Hat
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
-#
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'core'}
+                    'supported_by': 'network'}
 
 DOCUMENTATION = """
 ---
 module: iosxr_user
 version_added: "2.4"
-author: "Trishna Guha (@trishnag)"
+author: "Trishna Guha (@trishnaguha)"
 short_description: Manage the aggregate of local users on Cisco IOS XR device
 description:
   - This module provides declarative management of the local usernames
@@ -35,20 +24,22 @@ description:
     either individual usernames or the aggregate of usernames in the
     current running config. It also supports purging usernames from the
     configuration that are not explicitly defined.
+notes:
+  - Tested against IOS XR 6.1.2
 options:
-  users:
+  aggregate:
     description:
       - The set of username objects to be configured on the remote
         Cisco IOS XR device. The list entries can either be the username
         or a hash of username and properties. This argument is mutually
-        exclusive with the C(name) argument, alias C(aggregate).
+        exclusive with the C(name) argument, alias C(users).
   name:
     description:
       - The username to be configured on the Cisco IOS XR device.
         This argument accepts a string value and is mutually exclusive
         with the C(aggregate) argument.
         Please note that this option is not same as C(provider username).
-  password:
+  configured_password:
     description:
       - The password to be configured on the Cisco IOS XR device. The
         password needs to be provided in clear and it will be encrypted
@@ -92,14 +83,14 @@ EXAMPLES = """
 - name: create a new user
   iosxr_user:
     name: ansible
-    password: test
+    configured_password: test
     state: present
 - name: remove all users except admin
   iosxr_user:
     purge: yes
 - name: set multiple users to group sys-admin
   iosxr_user:
-    users:
+    aggregate:
       - name: netop
       - name: netend
     group: sysadmin
@@ -107,7 +98,7 @@ EXAMPLES = """
 - name: Change Password for User netop
   iosxr_user:
     name: netop
-    password: "{{ new_password }}"
+    configured_password: "{{ new_password }}"
     update_password: always
     state: present
 """
@@ -121,14 +112,13 @@ commands:
     - username ansible secret password group sysadmin
     - username admin secret admin
 """
-
-import re
-
 from functools import partial
 
+from copy import deepcopy
+
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.network_common import remove_default_spec
 from ansible.module_utils.iosxr import get_config, load_config
-from ansible.module_utils.six import iteritems
 from ansible.module_utils.iosxr import iosxr_argument_spec, check_args
 
 
@@ -156,16 +146,16 @@ def map_obj_to_commands(updates, module):
             user_cmd = 'username ' + name
             commands.append(user_cmd)
 
-            if w['password']:
-                commands.append(user_cmd + ' secret ' + w['password'])
+            if w['configured_password']:
+                commands.append(user_cmd + ' secret ' + w['configured_password'])
             if w['group']:
                 commands.append(user_cmd + ' group ' + w['group'])
 
         elif state == 'present' and obj_in_have:
             user_cmd = 'username ' + name
 
-            if module.params['update_password'] == 'always' and w['password']:
-                commands.append(user_cmd + ' secret ' + w['password'])
+            if module.params['update_password'] == 'always' and w['configured_password']:
+                commands.append(user_cmd + ' secret ' + w['configured_password'])
             if w['group'] and w['group'] != obj_in_have['group']:
                 commands.append(user_cmd + ' group ' + w['group'])
 
@@ -195,7 +185,7 @@ def map_config_to_obj(module):
         obj = {
             'name': name,
             'state': 'present',
-            'password': None,
+            'configured_password': None,
             'group': group
         }
         instances.append(obj)
@@ -224,7 +214,7 @@ def get_param_value(key, item, module):
 
 
 def map_params_to_obj(module):
-    users = module.params['users']
+    users = module.params['aggregate']
     if not users:
         if not module.params['name'] and module.params['purge']:
             return list()
@@ -246,7 +236,7 @@ def map_params_to_obj(module):
 
     for item in aggregate:
         get_value = partial(get_param_value, item=item, module=module)
-        item['password'] = get_value('password')
+        item['configured_password'] = get_value('configured_password')
         item['group'] = get_value('group')
         item['state'] = get_value('state')
         objects.append(item)
@@ -257,27 +247,41 @@ def map_params_to_obj(module):
 def main():
     """ main entry point for module execution
     """
-    argument_spec = dict(
-        users=dict(type='list', aliases=['aggregate']),
+    element_spec = dict(
         name=dict(),
 
-        password=dict(no_log=True),
+        configured_password=dict(no_log=True),
         update_password=dict(default='always', choices=['on_create', 'always']),
 
         group=dict(aliases=['role']),
-
-        purge=dict(type='bool', default=False),
         state=dict(default='present', choices=['present', 'absent'])
     )
+    aggregate_spec = deepcopy(element_spec)
+    aggregate_spec['name'] = dict(required=True)
 
+    # remove default in aggregate spec, to handle common arguments
+    remove_default_spec(aggregate_spec)
+
+    argument_spec = dict(
+        aggregate=dict(type='list', elements='dict', options=aggregate_spec, aliases=['users', 'collection']),
+        purge=dict(type='bool', default=False)
+    )
+
+    argument_spec.update(element_spec)
     argument_spec.update(iosxr_argument_spec)
-    mutually_exclusive = [('name', 'users')]
+    mutually_exclusive = [('name', 'aggregate')]
 
     module = AnsibleModule(argument_spec=argument_spec,
                            mutually_exclusive=mutually_exclusive,
                            supports_check_mode=True)
 
     warnings = list()
+    if module.params['password'] and not module.params['configured_password']:
+        warnings.append(
+            'The "password" argument is used to authenticate the current connection. ' +
+            'To set a user password use "configured_password" instead.'
+        )
+
     check_args(module, warnings)
 
     result = {'changed': False}

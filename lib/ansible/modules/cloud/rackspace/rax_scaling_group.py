@@ -1,22 +1,12 @@
 #!/usr/bin/python
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+# Copyright: Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-# This is a DOCUMENTATION stub specific to this module, it extends
-# a documentation fragment located in ansible.utils.module_docs_fragments
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
@@ -165,11 +155,16 @@ from ansible.module_utils.rax import (rax_argument_spec, rax_find_image, rax_fin
 from ansible.module_utils.six import string_types
 
 
-def rax_asg(module, cooldown=300, disk_config=None, files={}, flavor=None,
-            image=None, key_name=None, loadbalancers=[], meta={},
-            min_entities=0, max_entities=0, name=None, networks=[],
+def rax_asg(module, cooldown=300, disk_config=None, files=None, flavor=None,
+            image=None, key_name=None, loadbalancers=None, meta=None,
+            min_entities=0, max_entities=0, name=None, networks=None,
             server_name=None, state='present', user_data=None,
             config_drive=False, wait=True, wait_timeout=300):
+    files = {} if files is None else files
+    loadbalancers = [] if loadbalancers is None else loadbalancers
+    meta = {} if meta is None else meta
+    networks = [] if networks is None else networks
+
     changed = False
 
     au = pyrax.autoscale
