@@ -18,7 +18,8 @@ DOCUMENTATION = '''
 ---
 module: udm_dns_record
 version_added: "2.2"
-author: "Tobias Rueetschi (@2-B)"
+author:
+- Tobias Rüetschi (@keachi)
 short_description: Manage dns entries on a univention corporate server
 description:
     - "This module allows to manage dns records on a univention corporate server (UCS).
@@ -94,21 +95,21 @@ from ansible.module_utils.univention_umc import (
 
 def main():
     module = AnsibleModule(
-        argument_spec = dict(
-            type        = dict(required=True,
-                               type='str'),
-            zone        = dict(required=True,
-                               type='str'),
-            name        = dict(required=True,
-                               type='str'),
-            data        = dict(default=[],
-                               type='dict'),
-            state       = dict(default='present',
-                               choices=['present', 'absent'],
-                               type='str')
+        argument_spec=dict(
+            type=dict(required=True,
+                      type='str'),
+            zone=dict(required=True,
+                      type='str'),
+            name=dict(required=True,
+                      type='str'),
+            data=dict(default=[],
+                      type='dict'),
+            state=dict(default='present',
+                       choices=['present', 'absent'],
+                       type='str')
         ),
         supports_check_mode=True,
-        required_if = ([
+        required_if=([
             ('state', 'present', ['data'])
         ])
     )
@@ -116,12 +117,12 @@ def main():
     if not HAVE_UNIVENTION:
         module.fail_json(msg="This module requires univention python bindings")
 
-    type        = module.params['type']
-    zone        = module.params['zone']
-    name        = module.params['name']
-    data        = module.params['data']
-    state       = module.params['state']
-    changed     = False
+    type = module.params['type']
+    zone = module.params['zone']
+    name = module.params['name']
+    data = module.params['data']
+    state = module.params['state']
+    changed = False
 
     obj = list(ldap_search(
         '(&(objectClass=dNSZone)(zoneName={})(relativeDomainName={}))'.format(zone, name),
@@ -159,7 +160,7 @@ def main():
                     obj.create()
                 else:
                     obj.modify()
-        except BaseException as e:
+        except Exception as e:
             module.fail_json(
                 msg='Creating/editing dns entry {} in {} failed: {}'.format(name, container, e)
             )
@@ -170,7 +171,7 @@ def main():
             if not module.check_mode:
                 obj.remove()
             changed = True
-        except BaseException as e:
+        except Exception as e:
             module.fail_json(
                 msg='Removing dns entry {} in {} failed: {}'.format(name, container, e)
             )

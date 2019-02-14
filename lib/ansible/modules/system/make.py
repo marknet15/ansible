@@ -25,38 +25,45 @@ description:
 options:
   target:
     description:
-      - The target to run
-    required: false
-    default: none
+      - The target to run.
+      - "Examples: C(install) or C(test)"
   params:
     description:
       - Any extra parameters to pass to make
-    required: false
-    default: none
   chdir:
     description:
-      - cd into this directory before running make
+      - Change to this directory before running make
     required: true
+  file:
+    description:
+      - Use a custom Makefile
+    version_added: 2.5
 '''
 
 EXAMPLES = '''
-# Build the default target
-- make:
+- name: Build the default target
+  make:
     chdir: /home/ubuntu/cool-project
 
-# Run `install` target as root
-- make:
+- name: Run 'install' target as root
+  make:
     chdir: /home/ubuntu/cool-project
     target: install
   become: yes
 
-# Pass in extra arguments to build
-- make:
+- name: Build 'all' target with extra arguments
+  make:
     chdir: /home/ubuntu/cool-project
     target: all
     params:
       NUM_THREADS: 4
       BACKEND: lapack
+
+- name: Build 'all' target with a custom Makefile
+  make:
+    chdir: /home/ubuntu/cool-project
+    target: all
+    file: /some-project/Makefile
 '''
 
 # TODO: Disabled the RETURN as it was breaking docs building. Someone needs to
@@ -103,17 +110,25 @@ def main():
             target=dict(required=False, default=None, type='str'),
             params=dict(required=False, default=None, type='dict'),
             chdir=dict(required=True, default=None, type='path'),
+            file=dict(required=False, default=None, type='path')
         ),
     )
     # Build up the invocation of `make` we are going to use
-    make_path = module.get_bin_path('make', True)
+    # For non-Linux OSes, prefer gmake (GNU make) over make
+    make_path = module.get_bin_path('gmake', required=False)
+    if not make_path:
+        # Fall back to system make
+        make_path = module.get_bin_path('make', required=True)
     make_target = module.params['target']
     if module.params['params'] is not None:
         make_parameters = [k + '=' + str(v) for k, v in iteritems(module.params['params'])]
     else:
         make_parameters = []
 
-    base_command = [make_path, make_target]
+    if module.params['file'] is not None:
+        base_command = [make_path, "--file", module.params['file'], make_target]
+    else:
+        base_command = [make_path, make_target]
     base_command.extend(make_parameters)
 
     # Check if the target is already up to date
@@ -128,8 +143,9 @@ def main():
             #  do anything
             changed = False
         else:
-            # The target isn't upd to date, so we need to run it
-            rc, out, err = run_command(base_command, module)
+            # The target isn't up to date, so we need to run it
+            rc, out, err = run_command(base_command, module,
+                                       check_rc=True)
             changed = True
 
     # We don't report the return code, as if this module failed
@@ -144,7 +160,8 @@ def main():
         stderr=err,
         target=module.params['target'],
         params=module.params['params'],
-        chdir=module.params['chdir']
+        chdir=module.params['chdir'],
+        file=module.params['file']
     )
 
 

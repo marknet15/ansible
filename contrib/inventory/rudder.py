@@ -59,10 +59,7 @@ from time import time
 from ansible.module_utils.six.moves import configparser
 from ansible.module_utils.six.moves.urllib.parse import urlparse
 
-try:
-    import json
-except ImportError:
-    import simplejson as json
+import json
 
 
 class RudderInventory(object):
@@ -261,7 +258,7 @@ class RudderInventory(object):
 
         try:
             response, content = self.conn.request(target.geturl(), method, body, headers)
-        except:
+        except Exception:
             self.fail_with_error('Error connecting to Rudder server')
 
         try:
@@ -292,7 +289,8 @@ class RudderInventory(object):
         ''' Converts 'bad' characters in a string to underscores so they can be
         used as Ansible variable names '''
 
-        return re.sub('[^A-Za-z0-9\_]', '_', word)
+        return re.sub(r'[^A-Za-z0-9\_]', '_', word)
+
 
 # Run the script
 RudderInventory()

@@ -18,6 +18,7 @@ version_added: "2.3"
 short_description: Manage Elastic Container Registry repositories
 description:
     - Manage Elastic Container Registry repositories
+requirements: [ boto3 ]
 options:
     name:
         description:
@@ -38,11 +39,13 @@ options:
               setting another policy in the future.
         required: false
         default: false
+        type: bool
     delete_policy:
         description:
             - if yes, remove the policy from the repository
         required: false
         default: false
+        type: bool
     state:
         description:
             - create or destroy the repository
@@ -51,7 +54,9 @@ options:
         default: 'present'
 author:
  - David M. Lee (@leedm777)
-extends_documentation_fragment: aws
+extends_documentation_fragment:
+  - aws
+  - ec2
 '''
 
 EXAMPLES = '''
@@ -94,15 +99,15 @@ EXAMPLES = '''
 
 RETURN = '''
 state:
-    type: string
+    type: str
     description: The asserted state of the repository (present, absent)
     returned: always
 created:
-    type: boolean
+    type: bool
     description: If true, the repository was created
     returned: always
 name:
-    type: string
+    type: str
     description: The name of the repository
     returned: "when state == 'absent'"
 repository:
@@ -151,6 +156,9 @@ class EcsEcr:
         self.ecr = boto3_conn(module, conn_type='client',
                               resource='ecr', region=region,
                               endpoint=ec2_url, **aws_connect_kwargs)
+        self.sts = boto3_conn(module, conn_type='client',
+                              resource='sts', region=region,
+                              endpoint=ec2_url, **aws_connect_kwargs)
         self.check_mode = module.check_mode
         self.changed = False
         self.skipped = False
@@ -180,10 +188,14 @@ class EcsEcr:
             raise
 
     def create_repository(self, registry_id, name):
+        if registry_id:
+            default_registry_id = self.sts.get_caller_identity().get('Account')
+            if registry_id != default_registry_id:
+                raise Exception('Cannot create repository in registry {}.'
+                                'Would be created in {} instead.'.format(
+                                    registry_id, default_registry_id))
         if not self.check_mode:
-            repo = self.ecr.create_repository(
-                repositoryName=name, **build_kwargs(registry_id)).get(
-                'repository')
+            repo = self.ecr.create_repository(repositoryName=name).get('repository')
             self.changed = True
             return repo
         else:
@@ -294,7 +306,7 @@ def run(ecr, params, verbosity):
                         ecr.set_repository_policy(
                             registry_id, name, policy_text, force_set_policy)
                         result['changed'] = True
-                except:
+                except Exception:
                     # Some failure w/ the policy. It's helpful to know what the
                     # policy is.
                     result['policy'] = policy_text

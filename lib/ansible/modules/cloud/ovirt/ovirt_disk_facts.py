@@ -28,7 +28,7 @@ DOCUMENTATION = '''
 ---
 module: ovirt_disk_facts
 short_description: Retrieve facts about one or more oVirt/RHV disks
-author: "Katerina Koukiou (@kkoukiou)"
+author: "Katerina Koukiou (@KKoukiou)"
 version_added: "2.5"
 description:
     - "Retrieve facts about one or more oVirt/RHV disks."
@@ -39,7 +39,7 @@ options:
     pattern:
       description:
         - "Search term which is accepted by oVirt/RHV search backend."
-        - "For example to search Disk X from storafe Y use following pattern:
+        - "For example to search Disk X from storage Y use following pattern:
            name=X and storage.name=Y"
 extends_documentation_fragment: ovirt_facts
 '''

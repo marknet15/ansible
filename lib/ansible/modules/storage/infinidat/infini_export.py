@@ -83,13 +83,17 @@ EXAMPLES = '''
 
 RETURN = '''
 '''
+import traceback
+
+MUNCH_IMP_ERR = None
 try:
     from munch import unmunchify
     HAS_MUNCH = True
 except ImportError:
+    MUNCH_IMP_ERR = traceback.format_exc()
     HAS_MUNCH = False
 
-from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import AnsibleModule, missing_required_lib
 from ansible.module_utils.infinibox import HAS_INFINISDK, api_wrapper, get_system, infinibox_argument_spec
 
 
@@ -102,7 +106,7 @@ def get_filesystem(module, system):
     """Return Filesystem or None"""
     try:
         return system.filesystems.get(name=module.params['filesystem'])
-    except:
+    except Exception:
         return None
 
 
@@ -158,24 +162,24 @@ def main():
     argument_spec = infinibox_argument_spec()
     argument_spec.update(
         dict(
-            name        = dict(required=True),
-            state       = dict(default='present', choices=['present', 'absent']),
-            filesystem  = dict(required=True),
-            client_list = dict(type='list')
+            name=dict(required=True),
+            state=dict(default='present', choices=['present', 'absent']),
+            filesystem=dict(required=True),
+            client_list=dict(type='list')
         )
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
 
     if not HAS_INFINISDK:
-        module.fail_json(msg='infinisdk is required for this module')
+        module.fail_json(msg=missing_required_lib('infinisdk'))
     if not HAS_MUNCH:
-        module.fail_json(msg='the python munch library is required for this module')
+        module.fail_json(msg=missing_required_lib('munch'), exception=MUNCH_IMP_ERR)
 
-    state      = module.params['state']
-    system     = get_system(module)
+    state = module.params['state']
+    system = get_system(module)
     filesystem = get_filesystem(module, system)
-    export     = get_export(module, filesystem, system)
+    export = get_export(module, filesystem, system)
 
     if filesystem is None:
         module.fail_json(msg='Filesystem {} not found'.format(module.params['filesystem']))

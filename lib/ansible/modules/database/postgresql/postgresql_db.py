@@ -24,34 +24,28 @@ options:
     description:
       - name of the database to add or remove
     required: true
-    default: null
     aliases: [ db ]
   owner:
     description:
       - Name of the role to set as owner of the database
-    required: false
-    default: null
   template:
     description:
       - Template used to create the database
-    required: false
-    default: null
   encoding:
     description:
       - Encoding of the database
-    required: false
-    default: null
   lc_collate:
     description:
       - Collation order (LC_COLLATE) to use in the database. Must match collation order of template database unless C(template0) is used as template.
-    required: false
-    default: null
   lc_ctype:
     description:
       - Character classification (LC_CTYPE) to use in the database (e.g. lower, upper, ...) Must match LC_CTYPE of template database unless C(template0)
         is used as template.
-    required: false
-    default: null
+  session_role:
+    version_added: "2.8"
+    description: |
+      Switch to session_role after connecting. The specified session_role must be a role that the current login_user is a member of.
+      Permissions checking for SQL commands is carried out as though the session_role were the one that had logged in originally.
   state:
     description: |
         The database state. present implies that the database should be created if necessary.
@@ -61,7 +55,6 @@ options:
         (Added in 2.4) The format of the backup will be detected based on the target name.
         Supported compression formats for dump and restore are: .bz2, .gz, and .xz
         Supported formats for dump and restore are: .sql and .tar
-    required: false
     default: present
     choices: [ "present", "absent", "dump", "restore" ]
   target:
@@ -72,6 +65,11 @@ options:
     version_added: "2.4"
     description:
       - Further arguments for pg_dump or pg_restore. Used when state is "dump" or "restore"
+  maintenance_db:
+    version_added: "2.5"
+    description:
+      - The value specifies the initial database (which is also called as maintenance DB) that Ansible connects to.
+    default: postgres
 author: "Ansible Core Team"
 extends_documentation_fragment:
 - postgres
@@ -112,23 +110,23 @@ EXAMPLES = '''
     target_opts: "-n public"
 '''
 
+import os
+import pipes
+import subprocess
 import traceback
 
-HAS_PSYCOPG2 = False
+PSYCOPG2_IMP_ERR = None
 try:
     import psycopg2
     import psycopg2.extras
-    import pipes
-    import subprocess
-    import os
-
 except ImportError:
-    pass
+    PSYCOPG2_IMP_ERR = traceback.format_exc()
+    HAS_PSYCOPG2 = False
 else:
     HAS_PSYCOPG2 = True
 
 import ansible.module_utils.postgres as pgutils
-from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import AnsibleModule, missing_required_lib
 from ansible.module_utils.database import SQLParseError, pg_quote_identifier
 from ansible.module_utils.six import iteritems
 from ansible.module_utils._text import to_native
@@ -149,10 +147,12 @@ def set_owner(cursor, db, owner):
     cursor.execute(query)
     return True
 
+
 def get_encoding_id(cursor, encoding):
     query = "SELECT pg_char_to_encoding(%(encoding)s) AS encoding_id;"
     cursor.execute(query, {'encoding': encoding})
     return cursor.fetchone()['encoding_id']
+
 
 def get_db_info(cursor, db):
     query = """
@@ -165,10 +165,12 @@ def get_db_info(cursor, db):
     cursor.execute(query, {'db': db})
     return cursor.fetchone()
 
+
 def db_exists(cursor, db):
     query = "SELECT * FROM pg_database WHERE datname=%(db)s"
     cursor.execute(query, {'db': db})
     return cursor.rowcount == 1
+
 
 def db_delete(cursor, db):
     if db_exists(cursor, db):
@@ -177,6 +179,7 @@ def db_delete(cursor, db):
         return True
     else:
         return False
+
 
 def db_create(cursor, db, owner, template, encoding, lc_collate, lc_ctype):
     params = dict(enc=encoding, collate=lc_collate, ctype=lc_ctype)
@@ -218,6 +221,7 @@ def db_create(cursor, db, owner, template, encoding, lc_collate, lc_ctype):
         else:
             return False
 
+
 def db_matches(cursor, db, owner, template, encoding, lc_collate, lc_ctype):
     if not db_exists(cursor, db):
         return False
@@ -234,6 +238,7 @@ def db_matches(cursor, db, owner, template, encoding, lc_collate, lc_ctype):
             return False
         else:
             return True
+
 
 def db_dump(module, target, target_opts="",
             db=None,
@@ -270,13 +275,14 @@ def db_dump(module, target, target_opts="",
 
     return do_with_password(module, cmd, password)
 
+
 def db_restore(module, target, target_opts="",
-            db=None,
-            user=None,
-            password=None,
-            host=None,
-            port=None,
-            **kw):
+               db=None,
+               user=None,
+               password=None,
+               host=None,
+               port=None,
+               **kw):
 
     flags = login_flags(db, host, port, user)
     comp_prog_path = None
@@ -321,6 +327,7 @@ def db_restore(module, target, target_opts="",
 
     return do_with_password(module, cmd, password)
 
+
 def login_flags(db, host, port, user, db_prefix=True):
     """
     returns a list of connection argument strings each prefixed
@@ -344,6 +351,7 @@ def login_flags(db, host, port, user, db_prefix=True):
         flags.append(' --username={0}'.format(user))
     return flags
 
+
 def do_with_password(module, cmd, password):
     env = {}
     if password:
@@ -354,6 +362,7 @@ def do_with_password(module, cmd, password):
 # ===========================================
 # Module execution.
 #
+
 
 def main():
     argument_spec = pgutils.postgres_common_argument_spec()
@@ -367,6 +376,8 @@ def main():
         state=dict(default="present", choices=["absent", "present", "dump", "restore"]),
         target=dict(default="", type="path"),
         target_opts=dict(default=""),
+        maintenance_db=dict(default="postgres"),
+        session_role=dict(),
     ))
 
     module = AnsibleModule(
@@ -375,7 +386,7 @@ def main():
     )
 
     if not HAS_PSYCOPG2:
-        module.fail_json(msg="the python psycopg2 module is required")
+        module.fail_json(msg=missing_required_lib('psycopg2'), exception=PSYCOPG2_IMP_ERR)
 
     db = module.params["db"]
     owner = module.params["owner"]
@@ -387,19 +398,21 @@ def main():
     target_opts = module.params["target_opts"]
     state = module.params["state"]
     changed = False
+    maintenance_db = module.params['maintenance_db']
+    session_role = module.params["session_role"]
 
     # To use defaults values, keyword arguments must be absent, so
     # check which values are empty and don't include in the **kw
     # dictionary
     params_map = {
-        "login_host":"host",
-        "login_user":"user",
-        "login_password":"password",
-        "port":"port",
-        "ssl_mode":"sslmode",
-        "ssl_rootcert":"sslrootcert"
+        "login_host": "host",
+        "login_user": "user",
+        "login_password": "password",
+        "port": "port",
+        "ssl_mode": "sslmode",
+        "ssl_rootcert": "sslrootcert"
     }
-    kw = dict( (params_map[k], v) for (k, v) in iteritems(module.params)
+    kw = dict((params_map[k], v) for (k, v) in iteritems(module.params)
               if k in params_map and v != '' and v is not None)
 
     # If a login_unix_socket is specified, incorporate it here.
@@ -414,7 +427,7 @@ def main():
 
     try:
         pgutils.ensure_libs(sslrootcert=module.params.get('ssl_rootcert'))
-        db_connection = psycopg2.connect(database="postgres", **kw)
+        db_connection = psycopg2.connect(database=maintenance_db, **kw)
 
         # Enable autocommit so we can create databases
         if psycopg2.__version__ >= '2.4.2':
@@ -434,6 +447,12 @@ def main():
 
     except Exception as e:
         module.fail_json(msg="unable to connect to database: %s" % to_native(e), exception=traceback.format_exc())
+
+    if session_role:
+        try:
+            cursor.execute('SET ROLE %s' % pg_quote_identifier(session_role, 'role'))
+        except Exception as e:
+            module.fail_json(msg="Could not switch role: %s" % to_native(e), exception=traceback.format_exc())
 
     try:
         if module.check_mode:
@@ -456,6 +475,9 @@ def main():
                 module.fail_json(msg=to_native(e), exception=traceback.format_exc())
 
         elif state in ("dump", "restore"):
+            if not db_exists(cursor, db) and state == "dump":
+                module.fail_json(
+                    msg="database \"{db}\" does not exist".format(db=db))
             method = state == "dump" and db_dump or db_restore
             try:
                 rc, stdout, stderr, cmd = method(module, target, target_opts, db, **kw)
@@ -475,6 +497,7 @@ def main():
         module.fail_json(msg="Database query failed: %s" % to_native(e), exception=traceback.format_exc())
 
     module.exit_json(changed=changed, db=db)
+
 
 if __name__ == '__main__':
     main()

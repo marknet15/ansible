@@ -79,7 +79,7 @@ class AwsCloudProvider(CloudProvider):
         """
         :rtype: AnsibleCoreCI
         """
-        return AnsibleCoreCI(self.args, 'aws', 'sts', persist=False, stage=self.args.remote_stage)
+        return AnsibleCoreCI(self.args, 'aws', 'sts', persist=False, stage=self.args.remote_stage, provider=self.args.remote_provider)
 
 
 class AwsCloudEnvironment(CloudEnvironment):
@@ -103,10 +103,3 @@ class AwsCloudEnvironment(CloudEnvironment):
         if not tries and self.managed:
             display.notice('If %s failed due to permissions, the IAM test policy may need to be updated. '
                            'For help, consult @mattclay or @gundalow on GitHub or #ansible-devel on IRC.' % target.name)
-
-    @property
-    def inventory_hosts(self):
-        """
-        :rtype: str | None
-        """
-        return 'amazon'
