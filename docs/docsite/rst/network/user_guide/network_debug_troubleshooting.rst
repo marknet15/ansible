@@ -112,7 +112,7 @@ option in Ansible configuration file or by set :envvar:`ANSIBLE_LOG_PATH` as men
   The device interaction messages consist of command executed on target device and the returned response, as this
   log data can contain sensitive information including passwords in plain text it is disabled by default.
   Additionally, in order to prevent accidental leakage of data, a warning will be shown on every task with this
-  setting eneabled specifying which host has it enabled and where the data is being logged.
+  setting enabled specifying which host has it enabled and where the data is being logged.
 
 Be sure to fully understand the security implications of enabling this option. The device interaction logging can be enabled either globally by setting in configuration file or by setting environment or enabled on per task basis by passing special variable to task.
 
@@ -588,6 +588,7 @@ For example:
 
 Suggestions to resolve:
 
+In Ansible prior to 2.5 :
 Add ``authorize: yes`` to the task. For example:
 
 .. code-block:: yaml
@@ -613,6 +614,9 @@ Add ``authorize: yes`` to the task. For example:
       authorize: yes
       auth_pass: "{{ mypasswordvar }}"
   register: result
+
+
+.. note:: Starting with Ansible 2.5 we recommend using ``connection: network_cli`` and ``become: yes``
 
 
 Proxy Issues
@@ -645,6 +649,12 @@ With the configuration above, simply build and run the playbook as normal with
 no additional changes necessary.  The network module will now connect to the
 network device by first connecting to the host specified in
 ``ansible_ssh_common_args``, which is ``bastion01`` in the above example.
+
+You can also set the proxy target for all hosts by using environment variables.
+
+.. code-block:: sh
+
+    export ANSIBLE_SSH_ARGS='-o ProxyCommand="ssh -W %h:%p -q bastion01"'
 
 Using bastion/jump host with netconf connection
 -----------------------------------------------

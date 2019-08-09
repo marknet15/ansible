@@ -23,14 +23,15 @@ description:
     groups and volume counts. Additional fact information can be collected
     based on the configured set of arguements.
 author:
-  - Simon Dodsley (@sdodsley)
+  - Pure Storage ansible Team (@sdodsley) <pure-ansible-team@purestorage.com>
 options:
   gather_subset:
     description:
       - When supplied, this argument will define the facts to be collected.
         Possible values for this include all, minimum, config, performance,
         capacity, network, subnet, interfaces, hgroups, pgroups, hosts,
-        volumes, snapshots, pods, vgroups, offload and apps.
+        admins, volumes, snapshots, pods, vgroups, offload and apps.
+    type: list
     required: false
     default: minimum
 extends_documentation_fragment:
@@ -340,6 +341,8 @@ LATENCY_REQUIRED_API_VERSION = '1.16'
 AC_REQUIRED_API_VERSION = '1.14'
 CAP_REQUIRED_API_VERSION = '1.6'
 SAN_REQUIRED_API_VERSION = '1.10'
+NVME_API_VERSION = '1.16'
+PREFERRED_API_VERSION = '1.15'
 
 
 def generate_default_dict(array):
@@ -352,6 +355,7 @@ def generate_default_dict(array):
         default_facts['pods'] = len(array.list_pods())
         default_facts['connection_key'] = array.get(connection_key=True)['connection_key']
     hosts = array.list_hosts()
+    admins = array.list_admins()
     snaps = array.list_volumes(snap=True, pending=True)
     pgroups = array.list_pgroups(pending=True)
     hgroups = array.list_hgroups()
@@ -369,6 +373,7 @@ def generate_default_dict(array):
     default_facts['snapshots'] = len(snaps)
     default_facts['protection_groups'] = len(pgroups)
     default_facts['hostgroups'] = len(hgroups)
+    default_facts['admins'] = len(admins)
     return default_facts
 
 
@@ -403,15 +408,27 @@ def generate_perf_dict(array):
 
 def generate_config_dict(array):
     config_facts = {}
+    api_version = array._list_available_rest_versions()
     # DNS
     config_facts['dns'] = array.get_dns()
     # SMTP
     config_facts['smtp'] = array.list_alert_recipients()
     # SMNP
     config_facts['snmp'] = array.list_snmp_managers()
+    config_facts['snmp_v3_engine_id'] = array.get_snmp_engine_id()['engine_id']
     # DS
     config_facts['directory_service'] = array.get_directory_service()
-    config_facts['directory_service'].update(array.get_directory_service(groups=True))
+    if S3_REQUIRED_API_VERSION in api_version:
+        config_facts['directory_service_roles'] = {}
+        roles = array.list_directory_service_roles()
+        for role in range(0, len(roles)):
+            role_name = roles[role]['name']
+            config_facts['directory_service_roles'][role_name] = {
+                'group': roles[role]['group'],
+                'group_base': roles[role]['group_base'],
+            }
+    else:
+        config_facts['directory_service'].update(array.get_directory_service(groups=True))
     # NTP
     config_facts['ntp'] = array.get(ntpserver=True)['ntpserver']
     # SYSLOG
@@ -432,7 +449,22 @@ def generate_config_dict(array):
     config_facts['scsi_timeout'] = array.get(scsi_timeout=True)['scsi_timeout']
     # SSL
     config_facts['ssl_certs'] = array.get_certificate()
+    # Global Admin settings
+    if S3_REQUIRED_API_VERSION in api_version:
+        config_facts['global_admin'] = array.get_global_admin_attributes()
     return config_facts
+
+
+def generate_admin_dict(array):
+    admin_facts = {}
+    admins = array.list_admins()
+    for admin in range(0, len(admins)):
+        admin_name = admins[admin]['name']
+        admin_facts[admin_name] = {
+            'type': admins[admin]['type'],
+            'role': admins[admin]['role'],
+        }
+    return admin_facts
 
 
 def generate_subnet_dict(array):
@@ -457,24 +489,25 @@ def generate_network_dict(array):
     ports = array.list_network_interfaces()
     for port in range(0, len(ports)):
         int_name = ports[port]['name']
-        if ports[port]['enabled']:
-            net_facts[int_name] = {
-                'hwaddr': ports[port]['hwaddr'],
-                'mtu': ports[port]['mtu'],
-                'speed': ports[port]['speed'],
-                'address': ports[port]['address'],
-                'services': ports[port]['services'],
-                'gateway': ports[port]['gateway'],
-                'netmask': ports[port]['netmask'],
-            }
-            if ports[port]['subnet']:
-                subnets = array.get_subnet(ports[port]['subnet'])
-                if subnets['enabled']:
-                    net_facts[int_name]['subnet'] = {
-                        'name': subnets['name'],
-                        'prefix': subnets['prefix'],
-                        'vlan': subnets['vlan'],
-                    }
+        net_facts[int_name] = {
+            'hwaddr': ports[port]['hwaddr'],
+            'mtu': ports[port]['mtu'],
+            'enabled': ports[port]['enabled'],
+            'speed': ports[port]['speed'],
+            'address': ports[port]['address'],
+            'slaves': ports[port]['slaves'],
+            'services': ports[port]['services'],
+            'gateway': ports[port]['gateway'],
+            'netmask': ports[port]['netmask'],
+        }
+        if ports[port]['subnet']:
+            subnets = array.get_subnet(ports[port]['subnet'])
+            if subnets['enabled']:
+                net_facts[int_name]['subnet'] = {
+                    'name': subnets['name'],
+                    'prefix': subnets['prefix'],
+                    'vlan': subnets['vlan'],
+                }
     return net_facts
 
 
@@ -549,17 +582,30 @@ def generate_vol_dict(array):
 
 
 def generate_host_dict(array):
+    api_version = array._list_available_rest_versions()
     host_facts = {}
     hosts = array.list_hosts()
     for host in range(0, len(hosts)):
         hostname = hosts[host]['name']
+        tports = []
+        host_all_info = array.get_host(hostname, all=True)
+        if host_all_info:
+            tports = host_all_info[0]['target_port']
         host_facts[hostname] = {
             'hgroup': hosts[host]['hgroup'],
             'iqn': hosts[host]['iqn'],
             'wwn': hosts[host]['wwn'],
             'personality': array.get_host(hostname,
-                                          personality=True)['personality']
+                                          personality=True)['personality'],
+            'target_port': tports
         }
+        if NVME_API_VERSION in api_version:
+            host_facts[hostname]['nqn'] = hosts[host]['nqn']
+    if PREFERRED_API_VERSION in api_version:
+        hosts = array.list_hosts(preferred_array=True)
+        for host in range(0, len(hosts)):
+            hostname = hosts[host]['name']
+            host_facts[hostname]['preferred_array'] = hosts[host]['preferred_array']
     return host_facts
 
 
@@ -575,6 +621,35 @@ def generate_pgroups_dict(array):
             'targets': pgroups[pgroup]['targets'],
             'volumes': pgroups[pgroup]['volumes'],
         }
+        prot_sched = array.get_pgroup(protgroup, schedule=True)
+        prot_reten = array.get_pgroup(protgroup, retention=True)
+        if prot_sched['snap_enabled'] or prot_sched['replicate_enabled']:
+            pgroups_facts[protgroup]['snap_freqyency'] = prot_sched['snap_frequency']
+            pgroups_facts[protgroup]['replicate_freqyency'] = prot_sched['replicate_frequency']
+            pgroups_facts[protgroup]['snap_enabled'] = prot_sched['snap_enabled']
+            pgroups_facts[protgroup]['replicate_enabled'] = prot_sched['replicate_enabled']
+            pgroups_facts[protgroup]['snap_at'] = prot_sched['snap_at']
+            pgroups_facts[protgroup]['replicate_at'] = prot_sched['replicate_at']
+            pgroups_facts[protgroup]['replicate_blackout'] = prot_sched['replicate_blackout']
+            pgroups_facts[protgroup]['per_day'] = prot_reten['per_day']
+            pgroups_facts[protgroup]['target_per_day'] = prot_reten['target_per_day']
+            pgroups_facts[protgroup]['target_days'] = prot_reten['target_days']
+            pgroups_facts[protgroup]['days'] = prot_reten['days']
+            pgroups_facts[protgroup]['all_for'] = prot_reten['all_for']
+            pgroups_facts[protgroup]['target_all_for'] = prot_reten['target_all_for']
+        if ":" in protgroup:
+            snap_transfers = array.get_pgroup(protgroup, snap=True, transfer=True)
+            pgroups_facts[protgroup]['snaps'] = {}
+            for snap_transfer in range(0, len(snap_transfers)):
+                snap = snap_transfers[snap_transfer]['name']
+                pgroups_facts[protgroup]['snaps'][snap] = {
+                    'created': snap_transfers[snap_transfer]['created'],
+                    'started': snap_transfers[snap_transfer]['started'],
+                    'completed': snap_transfers[snap_transfer]['completed'],
+                    'physical_bytes_written': snap_transfers[snap_transfer]['physical_bytes_written'],
+                    'data_transferred': snap_transfers[snap_transfer]['data_transferred'],
+                    'progress': snap_transfers[snap_transfer]['progress'],
+                }
     return pgroups_facts
 
 
@@ -676,6 +751,7 @@ def generate_hgroups_dict(array):
 
 
 def generate_interfaces_dict(array):
+    api_version = array._list_available_rest_versions()
     int_facts = {}
     ports = array.list_ports()
     for port in range(0, len(ports)):
@@ -684,6 +760,9 @@ def generate_interfaces_dict(array):
             int_facts[int_name] = ports[port]['wwn']
         if ports[port]['iqn']:
             int_facts[int_name] = ports[port]['iqn']
+        if NVME_API_VERSION in api_version:
+            if ports[port]['nqn']:
+                int_facts[int_name] = ports[port]['nqn']
     return int_facts
 
 
@@ -700,8 +779,8 @@ def main():
     subset = [test.lower() for test in module.params['gather_subset']]
     valid_subsets = ('all', 'minimum', 'config', 'performance', 'capacity',
                      'network', 'subnet', 'interfaces', 'hgroups', 'pgroups',
-                     'hosts', 'volumes', 'snapshots', 'pods', 'vgroups',
-                     'offload', 'apps')
+                     'hosts', 'admins', 'volumes', 'snapshots', 'pods',
+                     'vgroups', 'offload', 'apps')
     subset_test = (test in valid_subsets for test in subset)
     if not all(subset_test):
         module.fail_json(msg="value must gather_subset must be one or more of: %s, got: %s"
@@ -735,6 +814,8 @@ def main():
         facts['pgroups'] = generate_pgroups_dict(array)
     if 'pods' in subset or 'all' in subset:
         facts['pods'] = generate_pods_dict(array)
+    if 'admins' in subset or 'all' in subset:
+        facts['admins'] = generate_admin_dict(array)
     if 'vgroups' in subset or 'all' in subset:
         facts['vgroups'] = generate_vgroups_dict(array)
     if 'offload' in subset or 'all' in subset:

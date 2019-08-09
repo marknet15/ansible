@@ -16,11 +16,10 @@ that tags two tasks with different tags::
 
     tasks:
     - yum:
-        name: "{{ item }}"
+        name:
+        - httpd
+        - memcached
         state: present
-      loop:
-      - httpd
-      - memcached
       tags:
       - packages
 
@@ -39,6 +38,8 @@ tasks, you can use the ``--skip-tags`` command-line option::
 
     ansible-playbook example.yml --skip-tags "packages"
 
+.. warning::
+    * Fact gathering is tagged with 'always' by default. It is ONLY skipped if you apply a tag and then use a different tag in ``--tags`` or the same tag in ``--skip-tags``.
 
 .. _tag_reuse:
 
@@ -196,7 +197,7 @@ Another special tag is ``never``, which will prevent a task from running unless 
 Example::
 
     tasks:
-      - debug: msg="{{ showmevar}}"
+      - debug: msg="{{ showmevar }}"
         tags: [ never, debug ]
 
 In this example, the task will only run when the ``debug`` or ``never`` tag is explicitly requested.
@@ -209,9 +210,9 @@ By default, Ansible runs as if ``--tags all`` had been specified.
 
 .. seealso::
 
-   :doc:`playbooks`
+   :ref:`playbooks_intro`
        An introduction to playbooks
-   :doc:`playbooks_reuse_roles`
+   :ref:`playbooks_reuse_roles`
        Playbook organization by roles
    `User Mailing List <https://groups.google.com/group/ansible-devel>`_
        Have a question?  Stop by the google group!

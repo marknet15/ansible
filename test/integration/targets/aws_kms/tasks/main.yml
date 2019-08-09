@@ -2,7 +2,7 @@
 
     # ============================================================
     - name: See whether key exists and its current state
-      aws_kms_facts:
+      aws_kms_info:
         region: "{{ aws_region }}"
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
@@ -17,6 +17,8 @@
         aws_secret_key: "{{ aws_secret_key }}"
         security_token: "{{ security_token }}"
         alias: "{{ resource_prefix }}-kms"
+        tags:
+          Hello: World
         state: present
         enabled: yes
       register: create_kms
@@ -25,9 +27,10 @@
       assert:
         that:
           - create_kms.key_state == "Enabled"
+          - create_kms.tags['Hello'] == 'World'
 
     - name: find facts about the key
-      aws_kms_facts:
+      aws_kms_info:
         region: "{{ aws_region }}"
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
@@ -63,7 +66,7 @@
         region: "{{ aws_region }}"
 
     - name: find facts about the key
-      aws_kms_facts:
+      aws_kms_info:
         region: "{{ aws_region }}"
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
@@ -83,7 +86,7 @@
         region: "{{ aws_region }}"
 
     - name: find facts about the key
-      aws_kms_facts:
+      aws_kms_info:
         region: "{{ aws_region }}"
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
@@ -91,8 +94,6 @@
         filters:
           alias: "{{ resource_prefix }}-kms"
       register: new_key
-
-    - fail:
 
     - name: set aws environment base fact
       set_fact:
@@ -107,7 +108,7 @@
       no_log: True
 
     - name: get ARN of calling user
-      command: python -c 'import boto3,json; sts = boto3.client("sts"); print json.dumps(sts.get_caller_identity())'
+      command: "{{ ansible_python_interpreter }} -c 'import boto3, json; sts = boto3.client(\"sts\"); print json.dumps(sts.get_caller_identity())'"
       changed_when: False
       environment: "{{ aws_environment }}"
       register: sts_get_caller_results
@@ -146,7 +147,7 @@
           - grant_one.grants|length == 1
 
     - name: Add a second grant
-      kms:
+      aws_kms:
         region: "{{ aws_region }}"
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"

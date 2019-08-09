@@ -44,16 +44,16 @@ extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a project facts
+- name: " a project facts"
   gcp_resourcemanager_project_facts:
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
@@ -138,7 +138,7 @@ def main():
         items = items.get('projects')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 

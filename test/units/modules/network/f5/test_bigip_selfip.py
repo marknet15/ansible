@@ -105,7 +105,7 @@ class TestParameters(unittest.TestCase):
         p = ModuleParameters(params=args)
         with pytest.raises(F5ModuleError) as ex:
             assert p.allow_service == ['grp', 'tcp:80', 'udp:53']
-        assert 'The provided protocol' in str(ex)
+        assert 'The provided protocol' in str(ex.value)
 
     def test_api_parameters(self):
         args = dict(
@@ -149,9 +149,11 @@ class TestManager(unittest.TestCase):
             state='present',
             traffic_group='traffic-group-local-only',
             vlan='net1',
-            password='password',
-            server='localhost',
-            user='admin'
+            provider=dict(
+                server='localhost',
+                password='password',
+                user='admin'
+            )
         ))
 
         module = AnsibleModule(
@@ -183,9 +185,11 @@ class TestManager(unittest.TestCase):
             state='present',
             traffic_group='traffic-group-local-only',
             vlan='net1',
-            password='password',
-            server='localhost',
-            user='admin'
+            provider=dict(
+                server='localhost',
+                password='password',
+                user='admin'
+            )
         ))
 
         current = ApiParameters(params=load_fixture('load_tm_net_self.json'))

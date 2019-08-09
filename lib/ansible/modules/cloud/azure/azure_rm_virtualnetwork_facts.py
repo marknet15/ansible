@@ -20,7 +20,7 @@ module: azure_rm_virtualnetwork_facts
 
 version_added: "2.1"
 
-short_description: Get virtual network facts.
+short_description: Get virtual network facts
 
 description:
     - Get facts for a specific virtual network or all virtual networks within a resource group.
@@ -40,20 +40,20 @@ extends_documentation_fragment:
     - azure
 
 author:
-    - "Chris Houseknecht (@chouseknecht) <house@redhat.com>"
-    - "Matt Davis (@nitzmahone) <mdavis@redhat.com>"
+    - Chris Houseknecht (@chouseknecht)
+    - Matt Davis (@nitzmahone)
 
 '''
 
 EXAMPLES = '''
     - name: Get facts for one virtual network
       azure_rm_virtualnetwork_facts:
-        resource_group: Testing
+        resource_group: myResourceGroup
         name: secgroup001
 
     - name: Get facts for all virtual networks
       azure_rm_virtualnetwork_facts:
-        resource_group: Testing
+        resource_group: myResourceGroup
 
     - name: Get facts by tags
       azure_rm_virtualnetwork_facts:
@@ -62,12 +62,13 @@ EXAMPLES = '''
 '''
 RETURN = '''
 azure_virtualnetworks:
-    description: List of virtual network dicts.
+    description:
+        - List of virtual network dicts.
     returned: always
     type: list
     example: [{
         "etag": 'W/"532ba1be-ae71-40f2-9232-3b1d9cf5e37e"',
-        "id": "/subscriptions/XXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXX/resourceGroups/Testing/providers/Microsoft.Network/virtualNetworks/vnet2001",
+        "id": "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroup/myResourceGroup/providers/Microsoft.Network/virtualNetworks/vnet2001",
         "location": "eastus2",
         "name": "vnet2001",
         "properties": {
@@ -83,78 +84,110 @@ azure_virtualnetworks:
         "type": "Microsoft.Network/virtualNetworks"
     }]
 virtualnetworks:
-    description: List of virtual network dicts with same format as azure_rm_virtualnetwork module parameters.
+    description:
+        - List of virtual network dicts with same format as M(azure_rm_virtualnetwork) module parameters.
     returned: always
-    type: list
+    type: complex
     contains:
             id:
                 description:
-                    - Resource ID.
-                sample: /subscriptions/XXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXX/resourceGroups/Testing/providers/Microsoft.Network/virtualNetworks/vnet2001
+                    - Resource ID of the virtual network.
+                sample: /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/vnet2001
+                returned: always
                 type: str
             address_prefixes:
                 description:
                     - List of IPv4 address ranges where each is formatted using CIDR notation.
                 sample: ["10.10.0.0/16"]
+                returned: always
                 type: list
             dns_servers:
                 description:
                     - Custom list of DNS servers.
+                returned: always
                 type: list
                 sample: ["www.azure.com"]
             location:
                 description:
-                    - Valid azure location.
+                    - Valid Azure location.
+                returned: always
                 type: str
                 sample: eastus
             tags:
                 description:
                     - Tags assigned to the resource. Dictionary of string:string pairs.
+                returned: always
                 type: dict
                 sample: { "tag1": "abc" }
             provisioning_state:
                 description:
                     - Provisioning state of the resource.
-                sample: Successed
+                returned: always
+                sample: Succeeded
                 type: str
             name:
                 description:
-                    - name of the virtual network.
+                    - Name of the virtual network.
+                returned: always
                 type: str
                 sample: foo
             subnets:
                 description:
-                    - Subnets associate to this virtual network.
+                    - Subnets associated with the virtual network.
+                returned: always
                 type: list
                 contains:
                     id:
                         description:
-                            - Resource ID.
+                            - Resource ID of the subnet.
+                        returned: always
                         type: str
+                        sample: "/subscriptions/f64d4ee8-be94-457d-ba26-3fa6b6506cef/resourceGroups/v-xisuRG/providers/
+                                Microsoft.Network/virtualNetworks/vnetb57dc95232/subnets/vnetb57dc95232"
                     name:
                         description:
-                            - Resource Name.
+                            - Name of the subnet.
+                        returned: always
                         type: str
+                        sample: vnetb57dc95232
                     provisioning_state:
                         description:
-                            - provision state of the Resource.
+                            - Provisioning state of the subnet.
+                        returned: always
                         type: str
-                        sample: Successed
+                        sample: Succeeded
                     address_prefix:
                         description:
                             - The address prefix for the subnet.
+                        returned: always
+                        type: str
+                        sample: '10.1.0.0/16'
                     network_security_group:
                         description:
-                            - Existing security group id with which to associate the subnet.
+                            - Existing security group ID with which to associate the subnet.
+                        returned: always
                         type: str
+                        sample: null
                     route_table:
                         description:
                             - The reference of the RouteTable resource.
+                        returned: always
                         type: str
+                        sample: null
                     service_endpoints:
                         description:
                             - An array of service endpoints.
+                        returned: always
                         type: list
+                        sample: [
+                        {
+                            "locations": [
+                                "southeastasia",
+                                "eastasia"
+                            ],
+                            "service": "Microsoft.Storage"
+                        }
+                    ]
 '''
 
 try:

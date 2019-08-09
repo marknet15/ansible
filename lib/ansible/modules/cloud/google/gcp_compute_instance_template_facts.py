@@ -42,25 +42,26 @@ requirements:
 options:
   filters:
     description:
-    - A list of filter value pairs. Available filters are listed here U(https://cloud.google.com/sdk/gcloud/reference/topic/filters.)
+    - A list of filter value pairs. Available filters are listed here U(https://cloud.google.com/sdk/gcloud/reference/topic/filters).
     - Each additional filter in the list will act be added as an AND condition (filter1
       and filter2) .
+    type: list
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a instance template facts
+- name: " a instance template facts"
   gcp_compute_instance_template_facts:
-      filters:
-      - name = test_object
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    filters:
+    - name = test_object
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
@@ -250,13 +251,18 @@ items:
               - Note that for InstanceTemplate, specify the disk name, not the URL
                 for the disk.
               returned: success
-              type: str
+              type: dict
             type:
               description:
               - Specifies the type of the disk, either SCRATCH or PERSISTENT. If not
                 specified, the default is PERSISTENT.
               returned: success
               type: str
+        labels:
+          description:
+          - Labels to apply to this address. A list of key->value pairs.
+          returned: success
+          type: dict
         machineType:
           description:
           - The machine type to use in the VM instance template.
@@ -326,7 +332,7 @@ items:
                     ephemeral IP address pool. If you specify a static external IP
                     address, it must live in the same region as the zone of the instance.
                   returned: success
-                  type: str
+                  type: dict
                 type:
                   description:
                   - The type of configuration. The default and only option is ONE_TO_ONE_NAT.
@@ -370,7 +376,7 @@ items:
                 network global/networks/default is used; if the network is not specified
                 but the subnetwork is specified, the network is inferred.
               returned: success
-              type: str
+              type: dict
             networkIP:
               description:
               - An IPv4 internal network address to assign to the instance for this
@@ -386,7 +392,7 @@ items:
                 optional. If the network is in custom subnet mode, then this field
                 should be specified.
               returned: success
-              type: str
+              type: dict
         scheduling:
           description:
           - Sets the scheduling options for this instance.
@@ -482,7 +488,7 @@ def main():
         items = items.get('items')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 

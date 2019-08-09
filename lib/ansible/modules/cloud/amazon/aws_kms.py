@@ -1,18 +1,7 @@
 #!/usr/bin/python
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+# -*- coding: utf-8 -*
+
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
@@ -36,7 +25,7 @@ options:
     description: An alias for a key. For safety, even though KMS does not require keys
       to have an alias, this module expects all new keys to be given an alias
       to make them easier to manage. Existing keys without an alias may be
-      referred to by I(key_id). Use M(aws_kms_facts) to find key ids. Required
+      referred to by I(key_id). Use M(aws_kms_info) to find key ids. Required
       if I(key_id) is not given. Note that passing a I(key_id) and I(alias)
       will only cause a new alias to be added, an alias will never be renamed.
       The 'alias/' prefix is optional.
@@ -606,7 +595,7 @@ def update_key(connection, module, key):
                 connection.create_alias(KeyId=key_id, AliasName=alias)
                 changed = True
             except (botocore.exceptions.ClientError, botocore.exceptions.BotoCoreError) as e:
-                module.fail_json_aws(msg="Failed create key alias")
+                module.fail_json_aws(e, msg="Failed create key alias")
 
     if key['key_state'] == 'PendingDeletion':
         try:
@@ -677,7 +666,7 @@ def update_key(connection, module, key):
 
 def create_key(connection, module):
     params = dict(BypassPolicyLockoutSafetyCheck=False,
-                  Tags=ansible_dict_to_boto3_tag_list(module.params['tags']),
+                  Tags=ansible_dict_to_boto3_tag_list(module.params['tags'], tag_name_key_name='TagKey', tag_value_key_name='TagValue'),
                   KeyUsage='ENCRYPT_DECRYPT',
                   Origin='AWS_KMS')
     if module.params.get('description'):
@@ -734,7 +723,7 @@ def get_arn_from_kms_alias(kms, aliasname):
             key_id = a['TargetKeyId']
             break
     if not key_id:
-        raise Exception('could not find alias {}'.format(aliasname))
+        raise Exception('could not find alias {0}'.format(aliasname))
 
     # now that we have the ID for the key, we need to get the key's ARN. The alias
     # has an ARN but we need the key itself.
@@ -742,14 +731,14 @@ def get_arn_from_kms_alias(kms, aliasname):
     for k in ret['Keys']:
         if k['KeyId'] == key_id:
             return k['KeyArn']
-    raise Exception('could not find key from id: {}'.format(key_id))
+    raise Exception('could not find key from id: {0}'.format(key_id))
 
 
 def get_arn_from_role_name(iam, rolename):
     ret = iam.get_role(RoleName=rolename)
     if ret.get('Role') and ret['Role'].get('Arn'):
         return ret['Role']['Arn']
-    raise Exception('could not find arn for name {}.'.format(rolename))
+    raise Exception('could not find arn for name {0}.'.format(rolename))
 
 
 def do_grant(kms, keyarn, role_arn, granttypes, mode='grant', dry_run=True, clean_invalid_entries=True):
@@ -826,7 +815,7 @@ def assert_policy_shape(policy):
     '''Since the policy seems a little, uh, fragile, make sure we know approximately what we're looking at.'''
     errors = []
     if policy['Version'] != "2012-10-17":
-        errors.append('Unknown version/date ({}) of policy. Things are probably different than we assumed they were.'.format(policy['Version']))
+        errors.append('Unknown version/date ({0}) of policy. Things are probably different than we assumed they were.'.format(policy['Version']))
 
     found_statement_type = {}
     for statement in policy['Statement']:
@@ -836,10 +825,10 @@ def assert_policy_shape(policy):
 
     for statementtype in statement_label.keys():
         if not found_statement_type.get(statementtype):
-            errors.append('Policy is missing {}.'.format(statementtype))
+            errors.append('Policy is missing {0}.'.format(statementtype))
 
     if len(errors):
-        raise Exception('Problems asserting policy shape. Cowardly refusing to modify it: {}'.format(' '.join(errors)))
+        raise Exception('Problems asserting policy shape. Cowardly refusing to modify it: {0}'.format(' '.join(errors)))
     return None
 
 
@@ -881,13 +870,13 @@ def main():
         if module.params['role_name'] and not module.params['role_arn']:
             module.params['role_arn'] = get_arn_from_role_name(iam, module.params['role_name'])
         if not module.params['role_arn']:
-            module.fail_json(msg='role_arn or role_name is required to {}'.format(module.params['mode']))
+            module.fail_json(msg='role_arn or role_name is required to {0}'.format(module.params['mode']))
 
         # check the grant types for 'grant' only.
         if mode == 'grant':
             for g in module.params['grant_types']:
                 if g not in statement_label:
-                    module.fail_json(msg='{} is an unknown grant type.'.format(g))
+                    module.fail_json(msg='{0} is an unknown grant type.'.format(g))
 
         ret = do_grant(kms, module.params['key_arn'], module.params['role_arn'], module.params['grant_types'],
                        mode=mode,

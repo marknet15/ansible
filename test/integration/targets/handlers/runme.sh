@@ -66,6 +66,8 @@ grep -q "ERROR! The requested handler 'notify_inexistent_handler' was not found 
 # Notify inexistent handlers without errors when ANSIBLE_ERROR_ON_MISSING_HANDLER=false
 ANSIBLE_ERROR_ON_MISSING_HANDLER=false ansible-playbook test_handlers_inexistent_notify.yml -i inventory.handlers -v "$@"
 
+ANSIBLE_ERROR_ON_MISSING_HANDLER=false ansible-playbook test_templating_in_handlers.yml -v "$@"
+
 # https://github.com/ansible/ansible/issues/36649
 output_dir=/tmp
 set +e
@@ -75,3 +77,10 @@ set -e
 
 # https://github.com/ansible/ansible/issues/47287
 [ "$(ansible-playbook test_handlers_including_task.yml -i ../../inventory -v "$@" | egrep -o 'failed=[0-9]+')" = "failed=0" ]
+
+# https://github.com/ansible/ansible/issues/27237
+set +e
+result="$(ansible-playbook test_handlers_template_run_once.yml -i inventory.handlers "$@" 2>&1)"
+set -e
+grep -q "handler A" <<< "$result"
+grep -q "handler B" <<< "$result"

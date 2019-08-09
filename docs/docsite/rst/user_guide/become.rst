@@ -31,7 +31,7 @@ become_user
     set to user with desired privileges — the user you `become`, NOT the user you login as. Does NOT imply ``become: yes``, to allow it to be set at host level.
 
 become_method
-    (at play or task level) overrides the default method set in ansible.cfg, set to `sudo`/`su`/`pbrun`/`pfexec`/`doas`/`dzdo`/`ksu`/`runas`/`machinectl`
+    (at play or task level) overrides the default method set in ansible.cfg, set to use any of the :ref:`become_plugins`.
 
 become_flags
     (at play or task level) permit the use of specific flags for the tasks or role. One common use is to change the user to nobody when the shell is set to no login. Added in Ansible 2.2.
@@ -74,7 +74,7 @@ ansible_become_user
     set the user you become through privilege escalation; does not imply ``ansible_become: yes``
 
 ansible_become_password
-    set the privilege escalation password. See :doc:`playbooks_vault` for details on how to avoid having secrets in plain text
+    set the privilege escalation password. See :ref:`playbooks_vault` for details on how to avoid having secrets in plain text
 
 For example, if you want to run all tasks as ``root`` on a server named ``webserver``, but you can only connect as the ``manager`` user, you could use an inventory entry like this::
 
@@ -240,7 +240,7 @@ For more information, see `this systemd issue
 Become and Networks
 ===================
 
-As of version 2.6, Ansible supports ``become`` for privilege escalation (entering ``enable`` mode or privileged EXEC mode) on all :ref:`Ansible-maintained platforms<network_supported>` that support ``enable`` mode: `eos``, ``ios``, and ``nxos``. Using ``become`` replaces the ``authorize`` and ``auth_pass`` options in a ``provider`` dictionary.
+As of version 2.6, Ansible supports ``become`` for privilege escalation (entering ``enable`` mode or privileged EXEC mode) on all :ref:`Ansible-maintained platforms<network_supported>` that support ``enable`` mode: ``eos``, ``ios``, and ``nxos``. Using ``become`` replaces the ``authorize`` and ``auth_pass`` options in a ``provider`` dictionary.
 
 You must set the connection type to either ``connection: network_cli`` or ``connection: httpapi`` to use ``become`` for privilege escalation on network devices. Check the :ref:`platform_options` and :ref:`network_modules` documentation for details.
 
@@ -302,7 +302,7 @@ If you need a password to enter ``enable`` mode, you can specify it in one of tw
 
 .. warning::
 
-   As a reminder passwords should never be stored in plain text. For information on encrypting your passwords and other secrets with Ansible Vault, see :doc:`playbooks_vault`.
+   As a reminder passwords should never be stored in plain text. For information on encrypting your passwords and other secrets with Ansible Vault, see :ref:`vault`.
 
 authorize and auth_pass
 -----------------------
@@ -693,6 +693,8 @@ Be aware of the following limitations with ``become`` on Windows:
   ``ansible_winrm_transport`` was either ``basic`` or ``credssp``. This
   restriction has been lifted since the 2.4 release of Ansible for all hosts
   except Windows Server 2008 (non R2 version).
+  
+* The Secondary Logon service ``seclogon`` must be running to use ``ansible_become_method: runas``
 
 .. seealso::
 
@@ -700,4 +702,3 @@ Be aware of the following limitations with ``become`` on Windows:
        Questions? Help? Ideas?  Stop by the list on Google Groups
    `webchat.freenode.net <https://webchat.freenode.net>`_
        #ansible IRC chat channel
-

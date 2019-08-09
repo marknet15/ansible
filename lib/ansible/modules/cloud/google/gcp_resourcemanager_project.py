@@ -48,12 +48,14 @@ options:
     - present
     - absent
     default: present
+    type: str
   name:
     description:
     - 'The user-assigned display name of the Project. It must be 4 to 30 characters.
       Allowed characters are: lowercase and uppercase letters, numbers, hyphen, single-quote,
       double-quote, space, and exclamation point.'
     required: false
+    type: str
   labels:
     description:
     - The labels associated with this Project.
@@ -65,39 +67,44 @@ options:
     - Clients should store labels in a representation such as JSON that does not depend
       on specific characters being disallowed .
     required: false
+    type: dict
   parent:
     description:
     - A parent organization.
     required: false
+    type: dict
     suboptions:
       type:
         description:
         - Must be organization.
         required: false
+        type: str
       id:
         description:
         - Id of the organization.
         required: false
+        type: str
   id:
     description:
     - The unique, user-assigned ID of the Project. It must be 6 to 30 lowercase letters,
       digits, or hyphens. It must start with a letter.
     - Trailing hyphens are prohibited.
     required: true
+    type: str
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
 - name: create a project
   gcp_resourcemanager_project:
-      name: My Sample Project
-      id: alextest-{{ 10000000000 | random }}
-      auth_kind: "serviceaccount"
-      service_account_file: "/tmp/auth.pem"
-      parent:
-        type: organization
-        id: 636173955921
-      state: present
+    name: My Sample Project
+    id: alextest-{{ 10000000000 | random }}
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
+    parent:
+      type: organization
+      id: 636173955921
+    state: present
 '''
 
 RETURN = '''
@@ -329,7 +336,7 @@ def wait_for_operation(module, response):
         return {}
     status = navigate_hash(op_result, ['done'])
     wait_done = wait_for_completion(status, op_result, module)
-    raise_if_errors(op_result, ['error'], module)
+    raise_if_errors(wait_done, ['error'], module)
     return navigate_hash(wait_done, ['response'])
 
 

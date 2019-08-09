@@ -44,16 +44,16 @@ extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a topic facts
+- name: " a topic facts"
   gcp_pubsub_topic_facts:
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
@@ -62,6 +62,20 @@ items:
       - Name of the topic.
       returned: success
       type: str
+    kmsKeyName:
+      description:
+      - The resource name of the Cloud KMS CryptoKey to be used to protect access
+        to messsages published on this topic. Your project's PubSub service account
+        (`service-{{PROJECT_NUMBER}}@gcp-sa-pubsub.iam.gserviceaccount.com`) must
+        have `roles/cloudkms.cryptoKeyEncrypterDecrypter` to use this feature.
+      - The expected format is `projects/*/locations/*/keyRings/*/cryptoKeys/*` .
+      returned: success
+      type: str
+    labels:
+      description:
+      - A set of key/value label pairs to assign to this Topic.
+      returned: success
+      type: dict
 '''
 
 ################################################################################
@@ -86,7 +100,7 @@ def main():
         items = items.get('topics')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 

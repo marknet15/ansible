@@ -42,30 +42,32 @@ requirements:
 options:
   filters:
     description:
-    - A list of filter value pairs. Available filters are listed here U(https://cloud.google.com/sdk/gcloud/reference/topic/filters.)
+    - A list of filter value pairs. Available filters are listed here U(https://cloud.google.com/sdk/gcloud/reference/topic/filters).
     - Each additional filter in the list will act be added as an AND condition (filter1
       and filter2) .
+    type: list
   region:
     description:
     - Region where the regional interconnect attachment resides.
     required: true
+    type: str
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a interconnect attachment facts
+- name: " a interconnect attachment facts"
   gcp_compute_interconnect_attachment_facts:
-      region: us-central1
-      filters:
-      - name = test_object
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    region: us-central1
+    filters:
+    - name = test_object
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
@@ -84,12 +86,37 @@ items:
     interconnect:
       description:
       - URL of the underlying Interconnect object that this attachment's traffic will
-        traverse through.
+        traverse through. Required if type is DEDICATED, must not be set if type is
+        PARTNER.
       returned: success
       type: str
     description:
       description:
       - An optional description of this resource.
+      returned: success
+      type: str
+    edgeAvailabilityDomain:
+      description:
+      - Desired availability domain for the attachment. Only available for type PARTNER,
+        at creation time. For improved reliability, customers should configure a pair
+        of attachments with one per availability domain. The selected availability
+        domain will be provided to the Partner via the pairing key so that the provisioned
+        circuit will lie in the specified domain. If not specified, the value will
+        default to AVAILABILITY_DOMAIN_ANY.
+      returned: success
+      type: str
+    pairingKey:
+      description:
+      - '[Output only for type PARTNER. Not present for DEDICATED]. The opaque identifier
+        of an PARTNER attachment used to initiate provisioning with a selected partner.
+        Of the form "XXXXX/region/domain" .'
+      returned: success
+      type: str
+    partnerAsn:
+      description:
+      - "[Output only for type PARTNER. Not present for DEDICATED]. Optional BGP ASN
+        for the router that should be supplied by a layer 3 Partner if they configured
+        BGP on behalf of the customer."
       returned: success
       type: str
     privateInterconnectInfo:
@@ -105,6 +132,16 @@ items:
             customer, going to and from this network and region.
           returned: success
           type: int
+    type:
+      description:
+      - The type of InterconnectAttachment you wish to create. Defaults to DEDICATED.
+      returned: success
+      type: str
+    state:
+      description:
+      - "[Output Only] The current state of this attachment's functionality."
+      returned: success
+      type: str
     googleReferenceId:
       description:
       - Google reference ID, to be used when raising support tickets with Google or
@@ -118,7 +155,7 @@ items:
         will automatically connect the Interconnect to the network & region within
         which the Cloud Router is configured.
       returned: success
-      type: str
+      type: dict
     creationTimestamp:
       description:
       - Creation timestamp in RFC3339 text format.
@@ -153,7 +190,8 @@ items:
       type: list
     vlanTag8021q:
       description:
-      - The IEEE 802.1Q VLAN tag for this attachment, in the range 2-4094.
+      - The IEEE 802.1Q VLAN tag for this attachment, in the range 2-4094. When using
+        PARTNER type this will be managed upstream.
       returned: success
       type: int
     region:
@@ -185,7 +223,7 @@ def main():
         items = items.get('items')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 

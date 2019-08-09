@@ -42,30 +42,32 @@ requirements:
 options:
   filters:
     description:
-    - A list of filter value pairs. Available filters are listed here U(https://cloud.google.com/sdk/gcloud/reference/topic/filters.)
+    - A list of filter value pairs. Available filters are listed here U(https://cloud.google.com/sdk/gcloud/reference/topic/filters).
     - Each additional filter in the list will act be added as an AND condition (filter1
       and filter2) .
+    type: list
   zone:
     description:
     - A reference to the zone where the disk resides.
     required: true
+    type: str
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a disk facts
+- name: " a disk facts"
   gcp_compute_disk_facts:
-      zone: us-central1-a
-      filters:
-      - name = test_object
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    zone: us-central1-a
+    filters:
+    - name = test_object
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
@@ -137,6 +139,15 @@ items:
         .'
       returned: success
       type: list
+    physicalBlockSizeBytes:
+      description:
+      - Physical block size of the persistent disk, in bytes. If not present in a
+        request, a default value is used. Currently supported sizes are 4096 and 16384,
+        other sizes may be added in the future.
+      - If an unsupported value is requested, the error message will list the supported
+        values for the caller's project.
+      returned: success
+      type: int
     type:
       description:
       - URL of the disk type resource describing which disk type to use to create
@@ -233,7 +244,7 @@ items:
       - The source snapshot used to create this disk. You can provide this as a partial
         or full URL to the resource.
       returned: success
-      type: str
+      type: dict
     sourceSnapshotEncryptionKey:
       description:
       - The customer-supplied encryption key of the source snapshot. Required if the
@@ -291,7 +302,7 @@ def main():
         items = items.get('items')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 

@@ -18,7 +18,7 @@ module: azure_rm_dnszone_facts
 
 version_added: "2.4"
 
-short_description: Get DNS zone facts.
+short_description: Get DNS zone facts
 
 description:
     - Get facts for a specific DNS zone or all DNS zones within a resource group.
@@ -39,19 +39,19 @@ extends_documentation_fragment:
     - azure_tags
 
 author:
-    - "Obezimnaka Boms (@ozboms)"
+    - Obezimnaka Boms (@ozboms)
 
 '''
 
 EXAMPLES = '''
 - name: Get facts for one zone
   azure_rm_dnszone_facts:
-    resource_group: Testing
+    resource_group: myResourceGroup
     name: foobar22
 
 - name: Get facts for all zones in a resource group
   azure_rm_dnszone_facts:
-    resource_group: Testing
+    resource_group: myResourceGroup
 
 - name: Get facts by tags
   azure_rm_dnszone_facts:
@@ -61,7 +61,8 @@ EXAMPLES = '''
 
 RETURN = '''
 azure_dnszones:
-    description: List of zone dicts.
+    description:
+        - List of zone dicts.
     returned: always
     type: list
     example:  [{
@@ -74,41 +75,47 @@ azure_dnszones:
                 "tags": {}
         }]
 dnszones:
-    description: List of zone dicts, which share the same layout as azure_rm_dnszone module parameter.
+    description:
+        - List of zone dicts, which share the same layout as azure_rm_dnszone module parameter.
     returned: always
     type: list
     contains:
         id:
             description:
                 - id of the DNS Zone.
-            sample: "/subscriptions/XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXX/resourceGroups/foo/providers/Microsoft.Network/dnszones/azure.com"
+            sample: "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/providers/Microsoft.Network/dnszones/azure.com"
         name:
             description:
-                - name of the DNS Zone.
+                - name of the DNS zone.
             sample: azure.com
         type:
             description:
-                - The type of this DNS zone (public or private)
+                - The type of this DNS zone (C(public) or C(private)).
             sample: private
         registration_virtual_networks:
             description:
                 - A list of references to virtual networks that register hostnames in this DNS zone.
-            sample:  ["/subscriptions/XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXX/resourceGroups/foo/providers/Microsoft.Network/virtualNetworks/bar"]
+            type: list
+            sample:  ["/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/bar"]
         resolution_virtual_networks:
             description:
                 - A list of references to virtual networks that resolve records in this DNS zone.
-            sample:  ["/subscriptions/XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXX/resourceGroups/foo/providers/Microsoft.Network/virtualNetworks/deadbeef"]
+            type: list
+            sample:  ["/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/providers/Microsoft.Network/virtualNetworks/deadbeef"]
         number_of_record_sets:
             description:
                 - The current number of record sets in this DNS zone.
+            type: int
             sample: 2
         max_number_of_record_sets:
             description:
                 - The maximum number of record sets that can be created in this DNS zone.
+            type: int
             sample: 5000
         name_servers:
             description:
                 - The name servers for this DNS zone.
+            type: list
             sample:  [
                 "ns1-03.azure-dns.com.",
                 "ns2-03.azure-dns.net.",

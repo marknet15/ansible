@@ -44,16 +44,16 @@ extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a service account facts
+- name: " a service account facts"
   gcp_iam_service_account_facts:
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
@@ -107,11 +107,11 @@ def main():
         module.params['scopes'] = ['https://www.googleapis.com/auth/iam']
 
     items = fetch_list(module, collection(module))
-    if items.get('items'):
-        items = items.get('items')
+    if items.get('accounts'):
+        items = items.get('accounts')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 

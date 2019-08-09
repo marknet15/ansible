@@ -119,6 +119,7 @@ options:
         every task in a playbook.  The I(running_config) argument allows the
         implementer to pass in the configuration to use as the base
         config for this module.
+    type: str
     aliases: ['config']
     version_added: "2.4"
   defaults:
@@ -181,6 +182,7 @@ options:
         of the current device's configuration against.  When specifying this
         argument, the task should also modify the C(diff_against) value and
         set it to I(intended).
+    type: str
     version_added: "2.4"
   backup_options:
     description:
@@ -394,6 +396,10 @@ def main():
     flags = ['all'] if module.params['defaults'] else []
     connection = get_connection(module)
 
+    # Refuse to diff_against: session if essions are disabled
+    if module.params['diff_against'] == 'session' and not connection.supports_sessions:
+        module.fail_json(msg="Cannot diff against sessions when sessions are disabled. Please change diff_against to another value")
+
     if module.params['backup'] or (module._diff and module.params['diff_against'] == 'running'):
         contents = get_config(module, flags=flags)
         config = NetworkConfig(indent=1, contents=contents)
@@ -433,13 +439,16 @@ def main():
 
             response = load_config(module, commands, replace=replace, commit=commit)
 
-            if 'diff' in response and module.params['diff_against'] == 'session':
-                result['diff'] = {'prepared': response['diff']}
+            result['changed'] = True
+
+            if module.params['diff_against'] == 'session':
+                if 'diff' in response:
+                    result['diff'] = {'prepared': response['diff']}
+                else:
+                    result['changed'] = False
 
             if 'session' in response:
                 result['session'] = response['session']
-
-            result['changed'] = True
 
     running_config = module.params['running_config']
     startup_config = None

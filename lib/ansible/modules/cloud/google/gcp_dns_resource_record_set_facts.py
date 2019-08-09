@@ -43,33 +43,34 @@ options:
   managed_zone:
     description:
     - Identifies the managed zone addressed by this request.
-    - Can be the managed zone name or id.
     - 'This field represents a link to a ManagedZone resource in GCP. It can be specified
-      in two ways. First, you can place in the name of the resource here as a string
-      Alternatively, you can add `register: name-of-resource` to a gcp_dns_managed_zone
-      task and then set this managed_zone field to "{{ name-of-resource }}"'
+      in two ways. First, you can place a dictionary with key ''name'' and value of
+      your resource''s name Alternatively, you can add `register: name-of-resource`
+      to a gcp_dns_managed_zone task and then set this managed_zone field to "{{ name-of-resource
+      }}"'
     required: true
+    type: dict
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a resource record set facts
+- name: " a resource record set facts"
   gcp_dns_resource_record_set_facts:
-      managed_zone: "{{ managed_zone }}"
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    managed_zone: "{{ managed_zone }}"
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
     name:
       description:
-      - For example, U(www.example.com.)
+      - For example, U(www.example.com).
       returned: success
       type: str
     type:
@@ -90,9 +91,8 @@ items:
     managed_zone:
       description:
       - Identifies the managed zone addressed by this request.
-      - Can be the managed zone name or id.
       returned: success
-      type: str
+      type: dict
 '''
 
 ################################################################################
@@ -107,7 +107,7 @@ import json
 
 
 def main():
-    module = GcpModule(argument_spec=dict(managed_zone=dict(required=True)))
+    module = GcpModule(argument_spec=dict(managed_zone=dict(required=True, type='dict')))
 
     if not module.params['scopes']:
         module.params['scopes'] = ['https://www.googleapis.com/auth/ndev.clouddns.readwrite']
@@ -117,7 +117,7 @@ def main():
         items = items.get('rrsets')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 

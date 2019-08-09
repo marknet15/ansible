@@ -51,78 +51,73 @@ options:
     - present
     - absent
     default: present
+    type: str
   name:
     description:
-    - For example, U(www.example.com.)
+    - For example, U(www.example.com).
     required: true
+    type: str
   type:
     description:
     - One of valid DNS resource types.
+    - 'Some valid choices include: "A", "AAAA", "CAA", "CNAME", "MX", "NAPTR", "NS",
+      "PTR", "SOA", "SPF", "SRV", "TLSA", "TXT"'
     required: true
-    choices:
-    - A
-    - AAAA
-    - CAA
-    - CNAME
-    - MX
-    - NAPTR
-    - NS
-    - PTR
-    - SOA
-    - SPF
-    - SRV
-    - TXT
+    type: str
   ttl:
     description:
     - Number of seconds that this ResourceRecordSet can be cached by resolvers.
     required: false
+    type: int
   target:
     description:
     - As defined in RFC 1035 (section 5) and RFC 1034 (section 3.6.1) .
     required: false
+    type: list
   managed_zone:
     description:
     - Identifies the managed zone addressed by this request.
-    - Can be the managed zone name or id.
     - 'This field represents a link to a ManagedZone resource in GCP. It can be specified
-      in two ways. First, you can place in the name of the resource here as a string
-      Alternatively, you can add `register: name-of-resource` to a gcp_dns_managed_zone
-      task and then set this managed_zone field to "{{ name-of-resource }}"'
+      in two ways. First, you can place a dictionary with key ''name'' and value of
+      your resource''s name Alternatively, you can add `register: name-of-resource`
+      to a gcp_dns_managed_zone task and then set this managed_zone field to "{{ name-of-resource
+      }}"'
     required: true
+    type: dict
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
 - name: create a managed zone
   gcp_dns_managed_zone:
-      name: "managedzone-rrs"
-      dns_name: testzone-4.com.
-      description: test zone
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      state: present
+    name: managedzone-rrs
+    dns_name: testzone-4.com.
+    description: test zone
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
   register: managed_zone
 
 - name: create a resource record set
   gcp_dns_resource_record_set:
-      name: www.testzone-4.com.
-      managed_zone: "{{ managed_zone }}"
-      type: A
-      ttl: 600
-      target:
-      - 10.1.2.3
-      - 40.5.6.7
-      project: "test_project"
-      auth_kind: "serviceaccount"
-      service_account_file: "/tmp/auth.pem"
-      state: present
+    name: www.testzone-4.com.
+    managed_zone: "{{ managed_zone }}"
+    type: A
+    ttl: 600
+    target:
+    - 10.1.2.3
+    - 40.5.6.7
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
+    state: present
 '''
 
 RETURN = '''
 name:
   description:
-  - For example, U(www.example.com.)
+  - For example, U(www.example.com).
   returned: success
   type: str
 type:
@@ -143,9 +138,8 @@ target:
 managed_zone:
   description:
   - Identifies the managed zone addressed by this request.
-  - Can be the managed zone name or id.
   returned: success
-  type: str
+  type: dict
 '''
 
 ################################################################################
@@ -170,10 +164,10 @@ def main():
         argument_spec=dict(
             state=dict(default='present', choices=['present', 'absent'], type='str'),
             name=dict(required=True, type='str'),
-            type=dict(required=True, type='str', choices=['A', 'AAAA', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS', 'PTR', 'SOA', 'SPF', 'SRV', 'TXT']),
+            type=dict(required=True, type='str'),
             ttl=dict(type='int'),
             target=dict(type='list', elements='str'),
-            managed_zone=dict(required=True),
+            managed_zone=dict(required=True, type='dict'),
         )
     )
 
@@ -358,13 +352,12 @@ class SOAForwardable(object):
 
 
 def prefetch_soa_resource(module):
-    name = module.params['name'].split('.')[1:]
 
     resource = SOAForwardable(
         {
             'type': 'SOA',
             'managed_zone': module.params['managed_zone'],
-            'name': '.'.join(name),
+            'name': replace_resource_dict(module.params['managed_zone'], 'dnsName'),
             'project': module.params['project'],
             'scopes': module.params['scopes'],
             'service_account_file': module.params['service_account_file'],

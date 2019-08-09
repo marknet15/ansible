@@ -48,41 +48,48 @@ options:
     - present
     - absent
     default: present
+    type: str
   default_service:
     description:
     - A reference to BackendService resource if none of the hostRules match.
     - 'This field represents a link to a BackendService resource in GCP. It can be
-      specified in two ways. First, you can place in the selfLink of the resource
-      here as a string Alternatively, you can add `register: name-of-resource` to
-      a gcp_compute_backend_service task and then set this default_service field to
-      "{{ name-of-resource }}"'
+      specified in two ways. First, you can place a dictionary with key ''selfLink''
+      and value of your resource''s selfLink Alternatively, you can add `register:
+      name-of-resource` to a gcp_compute_backend_service task and then set this default_service
+      field to "{{ name-of-resource }}"'
     required: true
+    type: dict
   description:
     description:
     - An optional description of this resource. Provide this property when you create
       the resource.
     required: false
+    type: str
   host_rules:
     description:
     - The list of HostRules to use against the URL.
     required: false
+    type: list
     suboptions:
       description:
         description:
         - An optional description of this HostRule. Provide this property when you
           create the resource.
         required: false
+        type: str
       hosts:
         description:
         - The list of host patterns to match. They must be valid hostnames, except
           * will match any string of ([a-z0-9-.]*). In that case, * must be the first
           character and must be followed in the pattern by either - or .
         required: true
+        type: list
       path_matcher:
         description:
         - The name of the PathMatcher to use to match the path portion of the URL
           if the hostRule matches the URL's host portion.
         required: true
+        type: str
   name:
     description:
     - Name of the resource. Provided by the client when the resource is created. The
@@ -92,33 +99,39 @@ options:
       characters must be a dash, lowercase letter, or digit, except the last character,
       which cannot be a dash.
     required: true
+    type: str
   path_matchers:
     description:
     - The list of named PathMatchers to use against the URL.
     required: false
+    type: list
     suboptions:
       default_service:
         description:
         - A reference to a BackendService resource. This will be used if none of the
           pathRules defined by this PathMatcher is matched by the URL's path portion.
         - 'This field represents a link to a BackendService resource in GCP. It can
-          be specified in two ways. First, you can place in the selfLink of the resource
-          here as a string Alternatively, you can add `register: name-of-resource`
-          to a gcp_compute_backend_service task and then set this default_service
-          field to "{{ name-of-resource }}"'
+          be specified in two ways. First, you can place a dictionary with key ''selfLink''
+          and value of your resource''s selfLink Alternatively, you can add `register:
+          name-of-resource` to a gcp_compute_backend_service task and then set this
+          default_service field to "{{ name-of-resource }}"'
         required: true
+        type: dict
       description:
         description:
         - An optional description of this resource.
         required: false
+        type: str
       name:
         description:
         - The name to which this PathMatcher is referred by the HostRule.
         required: true
+        type: str
       path_rules:
         description:
         - The list of path rules.
         required: false
+        type: list
         suboptions:
           paths:
             description:
@@ -127,92 +140,99 @@ options:
               to the path matcher does not include any text after the first ? or #,
               and those chars are not allowed here.'
             required: true
+            type: list
           service:
             description:
             - A reference to the BackendService resource if this rule is matched.
             - 'This field represents a link to a BackendService resource in GCP. It
-              can be specified in two ways. First, you can place in the selfLink of
-              the resource here as a string Alternatively, you can add `register:
-              name-of-resource` to a gcp_compute_backend_service task and then set
-              this service field to "{{ name-of-resource }}"'
+              can be specified in two ways. First, you can place a dictionary with
+              key ''selfLink'' and value of your resource''s selfLink Alternatively,
+              you can add `register: name-of-resource` to a gcp_compute_backend_service
+              task and then set this service field to "{{ name-of-resource }}"'
             required: true
+            type: dict
   tests:
     description:
     - The list of expected URL mappings. Requests to update this UrlMap will succeed
       only if all of the test cases pass.
     required: false
+    type: list
     suboptions:
       description:
         description:
         - Description of this test case.
         required: false
+        type: str
       host:
         description:
         - Host portion of the URL.
         required: true
+        type: str
       path:
         description:
         - Path portion of the URL.
         required: true
+        type: str
       service:
         description:
         - A reference to expected BackendService resource the given URL should be
           mapped to.
         - 'This field represents a link to a BackendService resource in GCP. It can
-          be specified in two ways. First, you can place in the selfLink of the resource
-          here as a string Alternatively, you can add `register: name-of-resource`
-          to a gcp_compute_backend_service task and then set this service field to
-          "{{ name-of-resource }}"'
+          be specified in two ways. First, you can place a dictionary with key ''selfLink''
+          and value of your resource''s selfLink Alternatively, you can add `register:
+          name-of-resource` to a gcp_compute_backend_service task and then set this
+          service field to "{{ name-of-resource }}"'
         required: true
+        type: dict
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
 - name: create a instance group
   gcp_compute_instance_group:
-      name: "instancegroup-urlmap"
-      zone: us-central1-a
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      state: present
+    name: instancegroup-urlmap
+    zone: us-central1-a
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
   register: instancegroup
 
 - name: create a http health check
   gcp_compute_http_health_check:
-      name: "httphealthcheck-urlmap"
-      healthy_threshold: 10
-      port: 8080
-      timeout_sec: 2
-      unhealthy_threshold: 5
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      state: present
+    name: httphealthcheck-urlmap
+    healthy_threshold: 10
+    port: 8080
+    timeout_sec: 2
+    unhealthy_threshold: 5
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
   register: healthcheck
 
 - name: create a backend service
   gcp_compute_backend_service:
-      name: "backendservice-urlmap"
-      backends:
-      - group: "{{ instancegroup }}"
-      health_checks:
-      - "{{ healthcheck.selfLink }}"
-      enable_cdn: true
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      state: present
+    name: backendservice-urlmap
+    backends:
+    - group: "{{ instancegroup.selfLink }}"
+    health_checks:
+    - "{{ healthcheck.selfLink }}"
+    enable_cdn: 'true'
+    project: "{{ gcp_project }}"
+    auth_kind: "{{ gcp_cred_kind }}"
+    service_account_file: "{{ gcp_cred_file }}"
+    state: present
   register: backendservice
 
 - name: create a url map
   gcp_compute_url_map:
-      name: "test_object"
-      default_service: "{{ backendservice }}"
-      project: "test_project"
-      auth_kind: "serviceaccount"
-      service_account_file: "/tmp/auth.pem"
-      state: present
+    name: test_object
+    default_service: "{{ backendservice }}"
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
+    state: present
 '''
 
 RETURN = '''
@@ -225,7 +245,7 @@ defaultService:
   description:
   - A reference to BackendService resource if none of the hostRules match.
   returned: success
-  type: str
+  type: dict
 description:
   description:
   - An optional description of this resource. Provide this property when you create
@@ -289,7 +309,7 @@ pathMatchers:
       - A reference to a BackendService resource. This will be used if none of the
         pathRules defined by this PathMatcher is matched by the URL's path portion.
       returned: success
-      type: str
+      type: dict
     description:
       description:
       - An optional description of this resource.
@@ -318,7 +338,7 @@ pathMatchers:
           description:
           - A reference to the BackendService resource if this rule is matched.
           returned: success
-          type: str
+          type: dict
 tests:
   description:
   - The list of expected URL mappings. Requests to update this UrlMap will succeed
@@ -346,7 +366,7 @@ tests:
       - A reference to expected BackendService resource the given URL should be mapped
         to.
       returned: success
-      type: str
+      type: dict
 '''
 
 ################################################################################
@@ -368,7 +388,7 @@ def main():
     module = GcpModule(
         argument_spec=dict(
             state=dict(default='present', choices=['present', 'absent'], type='str'),
-            default_service=dict(required=True),
+            default_service=dict(required=True, type='dict'),
             description=dict(type='str'),
             host_rules=dict(
                 type='list',
@@ -382,11 +402,13 @@ def main():
                 type='list',
                 elements='dict',
                 options=dict(
-                    default_service=dict(required=True),
+                    default_service=dict(required=True, type='dict'),
                     description=dict(type='str'),
                     name=dict(required=True, type='str'),
                     path_rules=dict(
-                        type='list', elements='dict', options=dict(paths=dict(required=True, type='list', elements='str'), service=dict(required=True))
+                        type='list',
+                        elements='dict',
+                        options=dict(paths=dict(required=True, type='list', elements='str'), service=dict(required=True, type='dict')),
                     ),
                 ),
             ),
@@ -394,7 +416,10 @@ def main():
                 type='list',
                 elements='dict',
                 options=dict(
-                    description=dict(type='str'), host=dict(required=True, type='str'), path=dict(required=True, type='str'), service=dict(required=True)
+                    description=dict(type='str'),
+                    host=dict(required=True, type='str'),
+                    path=dict(required=True, type='str'),
+                    service=dict(required=True, type='dict'),
                 ),
             ),
         )

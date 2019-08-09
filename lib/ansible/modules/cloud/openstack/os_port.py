@@ -84,7 +84,11 @@ options:
      description:
        - The type of the port that should be created
      choices: [normal, direct, direct-physical, macvtap, baremetal, virtio-forwarder]
-     default: normal
+     version_added: "2.8"
+   port_security_enabled:
+     description:
+       - Whether to enable or disable the port security on the network.
+     type: bool
      version_added: "2.8"
 '''
 
@@ -158,6 +162,7 @@ EXAMPLES = '''
       password: admin
       project_name: admin
     name: port1
+    network: foo
     vnic_type: direct
 '''
 
@@ -202,6 +207,10 @@ vnic_type:
     description: Type of the created port
     returned: success
     type: str
+port_security_enabled:
+    description: Port security state on the network.
+    returned: success
+    type: bool
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -217,7 +226,8 @@ def _needs_update(module, port, cloud):
                       'mac_address',
                       'device_owner',
                       'device_id',
-                      'binding:vnic_type']
+                      'binding:vnic_type',
+                      'port_security_enabled']
     compare_dict = ['allowed_address_pairs',
                     'extra_dhcp_opts']
     compare_list = ['security_groups']
@@ -283,7 +293,8 @@ def _compose_port_args(module, cloud):
                            'extra_dhcp_opts',
                            'device_owner',
                            'device_id',
-                           'binding:vnic_type']
+                           'binding:vnic_type',
+                           'port_security_enabled']
     for optional_param in optional_parameters:
         if module.params[optional_param] is not None:
             port_kwargs[optional_param] = module.params[optional_param]
@@ -316,9 +327,10 @@ def main():
         device_owner=dict(default=None),
         device_id=dict(default=None),
         state=dict(default='present', choices=['absent', 'present']),
-        vnic_type=dict(default='normal',
+        vnic_type=dict(default=None,
                        choices=['normal', 'direct', 'direct-physical',
                                 'macvtap', 'baremetal', 'virtio-forwarder']),
+        port_security_enabled=dict(default=None, type='bool')
     )
 
     module_kwargs = openstack_module_kwargs(
@@ -343,11 +355,9 @@ def main():
                 for v in module.params['security_groups']
             ]
 
-        if module.params['vnic_type']:
-            # Neutron API accept 'binding:vnic_type' as an argument
-            # for the port type.
-            module.params['binding:vnic_type'] = module.params['vnic_type']
-            module.params.pop('vnic_type', None)
+        # Neutron API accept 'binding:vnic_type' as an argument
+        # for the port type.
+        module.params['binding:vnic_type'] = module.params.pop('vnic_type')
 
         port = None
         network_id = None

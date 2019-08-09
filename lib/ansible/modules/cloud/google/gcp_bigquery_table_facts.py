@@ -44,21 +44,22 @@ options:
     description:
     - Name of the dataset.
     required: false
+    type: str
 extends_documentation_fragment: gcp
 '''
 
 EXAMPLES = '''
-- name:  a table facts
+- name: " a table facts"
   gcp_bigquery_table_facts:
-      dataset: example_dataset
-      project: test_project
-      auth_kind: serviceaccount
-      service_account_file: "/tmp/auth.pem"
+    dataset: example_dataset
+    project: test_project
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.pem"
 '''
 
 RETURN = '''
-items:
-  description: List of items
+resources:
+  description: List of resources
   returned: always
   type: complex
   contains:
@@ -313,14 +314,14 @@ items:
           type: str
         sourceUris:
           description:
-          - 'The fully-qualified URIs that point to your data in Google Cloud. For
-            Google Cloud Storage URIs: Each URI can contain one ''*'' wildcard character
-            and it must come after the ''bucket'' name. Size limits related to load
-            jobs apply to external data sources. For Google Cloud Bigtable URIs: Exactly
-            one URI can be specified and it has be a fully specified and valid HTTPS
-            URL for a Google Cloud Bigtable table. For Google Cloud Datastore backups,
-            exactly one URI can be specified. Also, the ''*'' wildcard character is
-            not allowed.'
+          - The fully-qualified URIs that point to your data in Google Cloud.
+          - 'For Google Cloud Storage URIs: Each URI can contain one ''*'' wildcard
+            character and it must come after the ''bucket'' name. Size limits related
+            to load jobs apply to external data sources. For Google Cloud Bigtable
+            URIs: Exactly one URI can be specified and it has be a fully specified
+            and valid HTTPS URL for a Google Cloud Bigtable table. For Google Cloud
+            Datastore backups, exactly one URI can be specified. Also, the ''*'' wildcard
+            character is not allowed.'
           returned: success
           type: list
         schema:
@@ -522,7 +523,7 @@ def main():
         items = items.get('tables')
     else:
         items = []
-    return_value = {'items': items}
+    return_value = {'resources': items}
     module.exit_json(**return_value)
 
 
