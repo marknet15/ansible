@@ -130,6 +130,30 @@ def return_contains(v):
     return v
 
 
+return_contains_schema = Any(
+    All(
+        Schema(
+            {
+                Required('description'): Any(list_string_types, *string_types),
+                'returned': Any(*string_types),  # only returned on top level
+                Required('type'): Any('bool', 'complex', 'dict', 'float', 'int', 'list', 'str'),
+                'version_added': Any(float, *string_types),
+                'sample': Any(None, list, dict, int, float, *string_types),
+                'example': Any(None, list, dict, int, float, *string_types),
+                'contains': Any(None, *list({str_type: Self} for str_type in string_types)),
+                # in case of type='list' elements define type of individual item in list
+                'elements': Any(None, 'bits', 'bool', 'bytes', 'dict', 'float', 'int', 'json', 'jsonarg', 'list', 'path', 'raw', 'sid', 'str'),
+            }
+        ),
+        Schema(return_contains)
+    ),
+    Schema(type(None)),
+)
+
+# This generates list of dicts with keys from string_types and return_contains_schema value
+# for example in Python 3: {str: return_contains_schema}
+list_dict_return_contains_schema = [{str_type: return_contains_schema} for str_type in string_types]
+
 return_schema = Any(
     All(
         Schema(
@@ -141,7 +165,9 @@ return_schema = Any(
                     'version_added': Any(float, *string_types),
                     'sample': Any(None, list, dict, int, float, *string_types),
                     'example': Any(None, list, dict, int, float, *string_types),
-                    'contains': object,
+                    'contains': Any(None, *list_dict_return_contains_schema),
+                    # in case of type='list' elements define type of individual item in list
+                    'elements': Any(None, 'bits', 'bool', 'bytes', 'dict', 'float', 'int', 'json', 'jsonarg', 'list', 'path', 'raw', 'sid', 'str'),
                 }
             }
         ),
@@ -157,7 +183,7 @@ deprecation_schema = Schema(
         # Deprecation cycle changed at 2.4 (though not retroactively)
         # 2.3 -> removed_in: "2.5" + n for docs stub
         # 2.4 -> removed_in: "2.8" + n for docs stub
-        Required('removed_in'): Any("2.2", "2.3", "2.4", "2.5", "2.6", "2.8", "2.9", "2.10", "2.11", "2.12", "2.13"),
+        Required('removed_in'): Any("2.2", "2.3", "2.4", "2.5", "2.6", "2.8", "2.9", "2.10", "2.11", "2.12", "2.13", "2.14"),
         Required('why'): Any(*string_types),
         Required('alternative'): Any(*string_types),
         'removed': Any(True),
@@ -177,7 +203,7 @@ def author(value):
             raise Invalid("Invalid author")
 
 
-def doc_schema(module_name):
+def doc_schema(module_name, version_added=True):
     deprecated_module = False
 
     if module_name.startswith('_'):
@@ -187,7 +213,6 @@ def doc_schema(module_name):
         Required('module'): module_name,
         Required('short_description'): Any(*string_types),
         Required('description'): Any(list_string_types, *string_types),
-        Required('version_added'): Any(float, *string_types),
         Required('author'): All(Any(None, list_string_types, *string_types), author),
         'notes': Any(None, list_string_types),
         'seealso': Any(None, seealso_schema),
@@ -196,6 +221,12 @@ def doc_schema(module_name):
         'options': Any(None, *list_dict_option_schema),
         'extends_documentation_fragment': Any(list_string_types, *string_types)
     }
+
+    if version_added:
+        doc_schema_dict[Required('version_added')] = Any(float, *string_types)
+    else:
+        # Optional
+        doc_schema_dict['version_added'] = Any(float, *string_types)
 
     if deprecated_module:
         deprecation_required_scheme = {

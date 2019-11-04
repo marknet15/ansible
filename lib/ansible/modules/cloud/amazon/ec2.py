@@ -29,7 +29,8 @@ version_added: "0.9"
 options:
   key_name:
     description:
-      - Key pair to use on the instance.
+      - key pair to use on the instance. The SSH key must exist on AWS in order to use this argument. If you want to generate keys from Ansible,
+        take a look at `ec2_key` module.
     aliases: ['keypair']
     type: str
   id:
@@ -117,7 +118,7 @@ options:
   spot_wait_timeout:
     version_added: "1.5"
     description:
-      - How long to wait for the spot instance request to be fulfilled.
+      - How long to wait for the spot instance request to be fulfilled. Affects 'Request valid until' for setting spot request lifespan.
     default: 600
     type: int
   count:
@@ -369,6 +370,7 @@ EXAMPLES = '''
     vpc_subnet_id: subnet-29e63245
     assign_public_ip: yes
     spot_launch_group: report_generators
+    instance_initiated_shutdown_behavior: terminate
 
 # Examples using pre-existing network interfaces
 - ec2:
@@ -600,7 +602,7 @@ def find_running_instances_by_count_tag(module, ec2, vpc, count_tag, zone=None):
     for res in reservations:
         if hasattr(res, 'instances'):
             for inst in res.instances:
-                if inst.state == 'terminated':
+                if inst.state == 'terminated' or inst.state == 'shutting-down':
                     continue
                 instances.append(inst)
 

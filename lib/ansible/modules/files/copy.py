@@ -60,6 +60,7 @@ options:
     - Influence whether the remote file must always be replaced.
     - If C(yes), the remote file will be replaced when contents are different than the source.
     - If C(no), the file will only be transferred if the destination does not exist.
+    - Alias C(thirsty) has been deprecated and will be removed in 2.13.
     type: bool
     default: yes
     aliases: [ thirsty ]
@@ -484,6 +485,9 @@ def copy_common_dirs(src, dest, module):
         left_only_changed = copy_left_only(b_src_item_path, b_dest_item_path, module)
         if diff_files_changed or left_only_changed:
             changed = True
+
+        # recurse into subdirectory
+        changed = changed or copy_common_dirs(os.path.join(src, item), os.path.join(dest, item), module)
     return changed
 
 
@@ -509,6 +513,9 @@ def main():
         add_file_common_args=True,
         supports_check_mode=True,
     )
+
+    if module.params.get('thirsty'):
+        module.deprecate('The alias "thirsty" has been deprecated and will be removed, use "force" instead', version='2.13')
 
     src = module.params['src']
     b_src = to_bytes(src, errors='surrogate_or_strict')

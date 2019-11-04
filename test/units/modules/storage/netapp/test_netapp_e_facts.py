@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 from ansible.modules.storage.netapp.netapp_e_facts import Facts
-from units.modules.utils import AnsibleExitJson, AnsibleFailJson, ModuleTestCase, set_module_args
+from units.modules.utils import AnsibleFailJson, ModuleTestCase, set_module_args
 
 from units.compat import mock
 
@@ -449,6 +449,7 @@ class FactsTest(ModuleTestCase):
         """Verify get_array_facts method returns expected results."""
         self._set_args()
         facts = Facts()
+        facts.is_embedded = lambda: True
         with mock.patch(self.GET_CONTROLLERS_FUNC, return_value={"070000000000000000000001": "A", "070000000000000000000002": "B"}):
             with mock.patch(self.REQUEST_FUNC, side_effect=[(200, self.GRAPH_RESPONSE), (200, self.WORKLOAD_RESPONSE)]):
                 self.assertEquals(facts.get_array_facts(), self.EXPECTED_GET_ARRAY_FACTS)

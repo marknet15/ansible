@@ -14,19 +14,22 @@ from .util import (
     display,
     find_python,
     ApplicationError,
-    ANSIBLE_ROOT,
     ANSIBLE_LIB_ROOT,
     ANSIBLE_TEST_DATA_ROOT,
     ANSIBLE_BIN_PATH,
+    ANSIBLE_SOURCE_ROOT,
 )
 
 from .util_common import (
+    create_temp_dir,
     run_command,
+    ResultType,
 )
 
 from .config import (
-    IntegrationConfig,
+    PosixIntegrationConfig,
     EnvironmentConfig,
+    CommonConfig,
 )
 
 from .data import (
@@ -49,12 +52,9 @@ def ansible_environment(args, color=True, ansible_config=None):
     if not path.startswith(ANSIBLE_BIN_PATH + os.path.pathsep):
         path = ANSIBLE_BIN_PATH + os.path.pathsep + path
 
-    if ansible_config:
-        pass
-    elif isinstance(args, IntegrationConfig):
-        ansible_config = os.path.join(ANSIBLE_ROOT, 'test/integration/%s.cfg' % args.command)
-    else:
-        ansible_config = os.path.join(ANSIBLE_TEST_DATA_ROOT, '%s/ansible.cfg' % args.command)
+    if not ansible_config:
+        # use the default empty configuration unless one has been provided
+        ansible_config = args.get_ansible_config()
 
     if not args.explain and not os.path.exists(ansible_config):
         raise ApplicationError('Configuration not found: %s' % ansible_config)
@@ -62,22 +62,30 @@ def ansible_environment(args, color=True, ansible_config=None):
     ansible = dict(
         ANSIBLE_PYTHON_MODULE_RLIMIT_NOFILE=str(SOFT_RLIMIT_NOFILE),
         ANSIBLE_FORCE_COLOR='%s' % 'true' if args.color and color else 'false',
+        ANSIBLE_FORCE_HANDLERS='true',  # allow cleanup handlers to run when tests fail
+        ANSIBLE_HOST_PATTERN_MISMATCH='error',  # prevent tests from unintentionally passing when hosts are not found
+        ANSIBLE_INVENTORY='/dev/null',  # force tests to provide inventory
         ANSIBLE_DEPRECATION_WARNINGS='false',
         ANSIBLE_HOST_KEY_CHECKING='false',
         ANSIBLE_RETRY_FILES_ENABLED='false',
-        ANSIBLE_CONFIG=os.path.abspath(ansible_config),
+        ANSIBLE_CONFIG=ansible_config,
         ANSIBLE_LIBRARY='/dev/null',
-        PYTHONPATH=os.path.dirname(ANSIBLE_LIB_ROOT),
+        PYTHONPATH=get_ansible_python_path(),
         PAGER='/bin/cat',
         PATH=path,
     )
+
+    if isinstance(args, PosixIntegrationConfig):
+        ansible.update(dict(
+            ANSIBLE_PYTHON_INTERPRETER='/set/ansible_python_interpreter/in/inventory',  # force tests to set ansible_python_interpreter in inventory
+        ))
 
     env.update(ansible)
 
     if args.debug:
         env.update(dict(
             ANSIBLE_DEBUG='true',
-            ANSIBLE_LOG_PATH=os.path.abspath('test/results/logs/debug.log'),
+            ANSIBLE_LOG_PATH=os.path.join(ResultType.LOGS.name, 'debug.log'),
         ))
 
     if data_context().content.collection:
@@ -86,6 +94,28 @@ def ansible_environment(args, color=True, ansible_config=None):
         ))
 
     return env
+
+
+def get_ansible_python_path():  # type: () -> str
+    """
+    Return a directory usable for PYTHONPATH, containing only the ansible package.
+    If a temporary directory is required, it will be cached for the lifetime of the process and cleaned up at exit.
+    """
+    if ANSIBLE_SOURCE_ROOT:
+        # when running from source there is no need for a temporary directory to isolate the ansible package
+        return os.path.dirname(ANSIBLE_LIB_ROOT)
+
+    try:
+        return get_ansible_python_path.python_path
+    except AttributeError:
+        pass
+
+    python_path = create_temp_dir(prefix='ansible-test-')
+    get_ansible_python_path.python_path = python_path
+
+    os.symlink(ANSIBLE_LIB_ROOT, os.path.join(python_path, 'ansible'))
+
+    return python_path
 
 
 def check_pyyaml(args, version):

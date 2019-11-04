@@ -4,8 +4,6 @@
 """
 The arg spec for the vyos facts module.
 """
-
-
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -17,15 +15,7 @@ class FactsArgs(object):  # pylint: disable=R0903
     def __init__(self, **kwargs):
         pass
 
-    choices = [
-        'all',
-        'interfaces',
-        '!interfaces',
-        'l3_interfaces',
-        '!l3_interfaces'
-    ]
-
     argument_spec = {
         'gather_subset': dict(default=['!config'], type='list'),
-        'gather_network_resources': dict(choices=choices, type='list'),
+        'gather_network_resources': dict(type='list'),
     }

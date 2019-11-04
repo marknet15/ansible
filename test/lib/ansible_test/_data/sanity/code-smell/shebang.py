@@ -74,10 +74,10 @@ def main():
                     print('%s:%d:%d: should not have a shebang' % (path, 0, 0))
 
                 continue
-            elif path.startswith('test/integration/targets/'):
+            elif path.startswith('test/integration/targets/') or path.startswith('tests/integration/targets/'):
                 is_integration = True
 
-                if dirname.endswith('/library') or dirname.endswith('/plugins/modules') or dirname in (
+                if dirname.endswith('/library') or '/plugins/modules' in dirname or dirname in (
                         # non-standard module library directories
                         'test/integration/targets/module_precedence/lib_no_extension',
                         'test/integration/targets/module_precedence/lib_with_extension',

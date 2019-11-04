@@ -39,6 +39,7 @@ author:
 - Ansible Core Team
 - Michael DeHaan
 extends_documentation_fragment:
+- backup
 - files
 - template_common
 - validate
@@ -63,7 +64,7 @@ EXAMPLES = r'''
 
 - name: Copy a version of named.conf that is dependent on the OS. setype obtained by doing ls -Z /etc/named.conf on original file
   template:
-    src: named.conf_{{ ansible_os_family}}.j2
+    src: named.conf_{{ ansible_os_family }}.j2
     dest: /etc/named.conf
     group: named
     setype: named_conf_t
