@@ -541,8 +541,8 @@ def get_table_privileges(cursor, user, table):
     else:
         schema = 'public'
     query = ("SELECT privilege_type FROM information_schema.role_table_grants "
-             "WHERE grantee='%s' AND table_name='%s' AND table_schema='%s'" % (user, table, schema))
-    cursor.execute(query)
+             "WHERE grantee=%(user)s AND table_name=%(table)s AND table_schema=%(schema)s")
+    cursor.execute(query, {'user': user, 'table': table, 'schema': schema})
     return frozenset([x[0] for x in cursor.fetchall()])
 
 
@@ -852,7 +852,7 @@ def main():
             target_roles = []
             target_roles.append(user)
             pg_membership = PgMembership(module, cursor, groups, target_roles)
-            changed = pg_membership.grant()
+            changed = pg_membership.grant() or changed
             executed_queries.extend(pg_membership.executed_queries)
 
     else:
