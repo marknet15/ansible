@@ -291,7 +291,7 @@ class AnsibleModuleError(Exception):
 # basic::AnsibleModule() until then but if so, make it a private function so that we don't have to
 # keep it for backwards compatibility later.
 def clear_facls(path):
-    setfacl = get_bin_path('setfacl', True)
+    setfacl = get_bin_path('setfacl')
     # FIXME "setfacl -b" is available on Linux and FreeBSD. There is "setfacl -D e" on z/OS. Others?
     acl_command = [setfacl, '-b', path]
     b_acl_command = [to_bytes(x) for x in acl_command]
@@ -509,6 +509,7 @@ def main():
             remote_src=dict(type='bool'),
             local_follow=dict(type='bool'),
             checksum=dict(type='str'),
+            follow=dict(type='bool', default=False),
         ),
         add_file_common_args=True,
         supports_check_mode=True,
