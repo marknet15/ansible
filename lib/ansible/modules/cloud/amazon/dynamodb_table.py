@@ -246,7 +246,6 @@ try:
         AnsibleAWSModule,
         is_boto3_error_code,
     )
-    from ansible.module_utils.common.dict_transformations import dict_merge
     from botocore.exceptions import (
         ClientError,
         NoCredentialsError,
@@ -326,11 +325,14 @@ def get_table_tags_change(
         purge_tags=purge_tags
     )
 
-    result_tags = dict(
-        (k, v)
-        for k, v in dict_merge(tags, table_tags).items()
-        if k not in tags_remove
-    )
+    # Merge tuple of supplied tags with ones already on the tables (supplied list takes precedence)
+    merged_tags = {**tags, **table_tags}
+
+    result_tags = {
+        key: value
+        for key, value in merged_tags.items()
+        if key not in tags_remove
+    }
 
     return {
         'changed': tags_add or tags_remove,
@@ -433,7 +435,7 @@ def create_or_update_dynamo_table(resource, module):
 
     point_in_time_recovery = module.params.get('point_in_time_recovery')
 
-    key_type_mapping = {'STRING': 'S', 'BOOLEAN': 'B', 'NUMBER': 'B'}
+    key_type_mapping = {'STRING': 'S', 'BINARY': 'B', 'NUMBER': 'N'}
 
     for index in all_indexes:
         validate_index(index, module)
@@ -461,7 +463,7 @@ def create_or_update_dynamo_table(resource, module):
         local_secondary_indexes,
         global_secondary_indexes,
         attribute_definitions
-    ) = serialize_indexes(all_indexes)
+    ) = serialize_indexes(all_indexes, billing_mode)
 
     result = dict(
         table_name=table_name,
@@ -681,7 +683,7 @@ def update_dynamodb_table_args(
     if stream_spec is not None:
         kwargs.update({'StreamSpecification': stream_spec})
 
-    if sse_spec is not None:
+    if isinstance(sse_spec, dict):
         # if kms master key id is empty pop it off
         if 'KMSMasterKeyId' in sse_spec and sse_spec['KMSMasterKeyId'] == '':
             sse_spec.pop('KMSMasterKeyId', None)
@@ -731,8 +733,7 @@ def update_dynamo_table(
     )
 
     # Ignore ProvisionedThroughput if desired BillingMode is 'PAY_PER_REQUEST'.
-    if (
-            (set_billing_mode is None and current_billing_mode == 'PROVISIONED')
+    if ((set_billing_mode is None and current_billing_mode == 'PROVISIONED')
             or set_billing_mode == 'PROVISIONED'
     ) and has_throughput_changed(table, throughput):
         set_prov_throughput = {
@@ -777,6 +778,7 @@ def update_dynamo_table(
 
     # Prepare state change response
     if set_billing_mode is not None:
+        # billing_mode is always displayed, therefore only 'changed' is updated.
         change_state['changed'] = True
         change_state['billing_mode'] = set_billing_mode
     else:
@@ -829,7 +831,7 @@ def has_sse_spec_changed(table, new_sse_spec):
 
     return (
         table.sse_description is None
-        or new_sse_spec['Enabled'] != table.sse_description['Enabled']
+        or new_sse_spec['Enabled'] != table.sse_description['Status']
         or new_sse_spec['SSEType'] != table.sse_description['SSEType']
         or (
             new_sse_spec['KMSMasterKeyId'] != ''
@@ -982,15 +984,15 @@ def validate_index(index, module):
         module.fail_json(msg='%s is not a valid index type, must be one of %s' % (index['type'], INDEX_TYPE_OPTIONS))
 
 
-def serialize_index_to_json(index):
+def serialize_index_to_json(index, billing_mode):
     serialized_index = {}
-    serialized_index_attribute_definitions = {}
+    serialized_index_attribute_definitions = []
     name = index['name']
     index_type = index.get('type')
     hash_key_name = index.get('hash_key_name')
-    hash_key_type = index.get('hash_key_type', 'S')
+    hash_key_type = index.get('hash_key_type', 'STRING')
     range_key_name = index.get('range_key_name')
-    range_key_type = index.get('range_key_type', 'S')
+    range_key_type = index.get('range_key_type', 'STRING')
     schema = get_schema_param(
         hash_key_name,
         hash_key_type,
@@ -1003,6 +1005,7 @@ def serialize_index_to_json(index):
         'ReadCapacityUnits': index.get('read_capacity', 1),
         'WriteCapacityUnits': index.get('write_capacity', 1)
     }
+    key_type_mapping = {'STRING': 'S', 'BINARY': 'B', 'NUMBER': 'N'}
 
     if projection_type == 'include':
         projection.update({'NonKeyAttributes': index['includes']})
@@ -1015,21 +1018,27 @@ def serialize_index_to_json(index):
         }
     )
 
-    if index_type in ['global_all', 'global_include', 'global_keys_only']:
+    if billing_mode != "PAY_PER_REQUEST" and index_type in ['global_all', 'global_include', 'global_keys_only']:
         serialized_index.update({'ProvisionedThroughput': index_throughput})
 
-    serialized_index_attribute_definitions.update(
-        {
-            'AttributeName': hash_key_name,
-            'AttributeType': hash_key_type
-        }
-    )
-
     if range_key_name:
-        serialized_index_attribute_definitions.update(
+        serialized_index_attribute_definitions.append(
+            {
+                'AttributeName': hash_key_name,
+                'AttributeType': key_type_mapping[hash_key_type.upper()]
+            }
+        )
+        serialized_index_attribute_definitions.append(
             {
                 'AttributeName': range_key_name,
-                'AttributeType': range_key_type
+                'AttributeType': key_type_mapping[range_key_type.upper()]
+            }
+        )
+    else:
+        serialized_index_attribute_definitions.append(
+            {
+                'AttributeName': hash_key_name,
+                'AttributeType': key_type_mapping[hash_key_type.upper()]
             }
         )
 
@@ -1040,7 +1049,7 @@ def serialize_index_to_json(index):
     )
 
 
-def serialize_indexes(all_indexes):
+def serialize_indexes(all_indexes, billing_mode):
     local_secondary_indexes = []
     global_secondary_indexes = []
     indexes_attr_definitions = []
@@ -1049,9 +1058,10 @@ def serialize_indexes(all_indexes):
             index_type,
             serialized_index_to_json,
             serialized_index_attribute_definitions
-        ) = serialize_index_to_json(index)
+        ) = serialize_index_to_json(index, billing_mode)
 
-        indexes_attr_definitions.append(serialized_index_attribute_definitions)
+        for index_attr_definition in serialized_index_attribute_definitions:
+            indexes_attr_definitions.append(index_attr_definition)
 
         if index_type in ['all', 'include', 'keys_only']:
             # local secondary all_indexes
@@ -1095,6 +1105,7 @@ def main():
         supports_check_mode=True,
         required_if=[
             ['state', 'present', ['name', 'hash_key_name']],
+            ['sse_type', 'KMS', ['sse_type']],
             ['sse_enabled', 'True', ['sse_type']],
             ['stream_enabled', 'True', ['stream_view_type']]
         ]
